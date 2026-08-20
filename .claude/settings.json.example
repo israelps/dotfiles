@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "//": "EXAMPLE ONLY. Copy to .claude/settings.local.json (gitignored) and",
+  "//2": "regenerate from YOUR data: ./measure/analyze.py shows which commands",
+  "//3": "actually prompt in your sessions. Publishing your real allowlist",
+  "//4": "publishes the shape of your commands — keep it local.",
+
+  "//5": "Derived on the machine this repo came from: cd (28x), echo (22x),",
+  "//6": "ls (12x), cat (10x), wc (8x) were the commands that most often",
+  "//7": "stopped for a permission prompt. They are read-only and safe.",
+
+  "permissions": {
+    "allow": [
+      "Bash(cd *)",
+      "Bash(echo *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(printenv)",
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/id_*)",
+      "Read(~/.aws/**)"
+    ]
+  }
+}

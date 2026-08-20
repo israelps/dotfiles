@@ -1,0 +1,160 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Named tokyo-night palette, so styles read as names instead of raw hex.
+palette = 'tokyonight'
+
+scan_timeout = 500
+command_timeout = 1000
+
+# ── LEFT: where I am, and in what state ────────────────────────────────────
+format = """
+[](azul)\
+$os\
+[](bg:cinza fg:azul)\
+$directory\
+[](fg:cinza bg:#394260)\
+$git_branch\
+$git_status\
+[](fg:#394260)\
+$custom\
+$container\
+$line_break\
+$character"""
+
+# ── RIGHT: what HAPPENED (not where I am) ──────────────────────────────────
+# right_format keeps duration and clock off the left line, which stays short
+# enough to read in a vertical split — branch names here run long.
+right_format = """$status$jobs$cmd_duration$time"""
+
+[palettes.tokyonight]
+azul     = '#7aa2f7'
+ciano    = '#7dcfff'
+verde    = '#9ece6a'
+amarelo  = '#e0af68'
+vermelho = '#f7768e'
+roxo     = '#bb9af7'
+cinza    = '#565f89'
+fg       = '#c0caf5'
+
+[os]
+disabled = false
+style = "bg:azul fg:#1a1b26"
+format = "[ $symbol ]($style)"
+[os.symbols]
+Macos = "󰀵"
+
+[directory]
+style = "fg:fg bg:cinza"
+format = "[ $path ]($style)"
+truncate_to_repo = true
+truncation_length = 4
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = ""
+style = "bg:#394260"
+format = '[[ $symbol $branch ](fg:azul bg:#394260)]($style)'
+truncation_length = 28
+truncation_symbol = "…"
+
+[git_status]
+ignore_submodules = true
+style = "bg:#394260"
+format = '[[($all_status$ahead_behind )](fg:amarelo bg:#394260)]($style)'
+
+# ── Language icons WITHOUT a subprocess ────────────────────────────────────
+# A `custom` module with detect_files and NO `command`: starship only checks
+# whether the file exists. Measured: 0 command executions, against 1 for the
+# native module. Works even when the toolchain isn't installed.
+[custom.golang]
+detect_files = ["go.mod", "go.work"]
+symbol = " "
+format = "[ $symbol]($style)"
+style = "bold ciano"
+
+[custom.node]
+detect_files = ["package.json"]
+symbol = " "
+format = "[ $symbol]($style)"
+style = "bold verde"
+
+[custom.go_mismatch]
+# Warns when the installed Go doesn't satisfy this worktree's go.work/go.mod.
+# Silent when they match.
+#
+# Why not the native [golang] module's `not_capable_style`: tested, it does not
+# turn red — the version simply DISAPPEARS from the prompt, which reads as
+# "no Go here" when it means "your Go doesn't satisfy this project". And
+# reaching that state costs 1553 ms, because `go` tries to download the missing
+# toolchain. This script uses GOTOOLCHAIN=local, which cannot download: 19 ms
+# with a guaranteed ceiling.
+detect_files = ["go.mod", "go.work"]
+command = "/bin/sh $HOME/.config/starship-go-mismatch.sh"
+format = "[ $output]($style)"
+style = "bold #f7768e"
+
+[custom.rust]
+# Same criterion as the native [rust] module (docs: "Cargo.toml or a .rs
+# file"), but by FILE DETECTION — it never runs `rustc --version`.
+detect_files = ["Cargo.toml"]
+detect_extensions = ["rs"]
+symbol = " "
+format = "[ $symbol]($style)"
+style = "bold #f7768e"
+
+[custom.python]
+# The native module would run `python --version` on every prompt.
+detect_files = ["pyproject.toml", "requirements.txt", "Pipfile", ".python-version"]
+symbol = " "
+format = "[ $symbol]($style)"
+style = "bold #e0af68"
+
+[custom.docker]
+detect_files = ["Dockerfile", "docker-compose.yml", "compose.yml"]
+symbol = " "
+format = "[ $symbol]($style)"
+style = "bold azul"
+
+[custom.helm]
+detect_files = ["Chart.yaml"]
+symbol = "⎈ "
+format = "[ $symbol]($style)"
+style = "bold ciano"
+
+# ── Execution signals (all disabled by default in starship) ────────────────
+[status]
+# Shows the exit code when a command fails. Off by default in starship, which
+# means a failed command leaves no trace in the prompt at all.
+disabled = false
+symbol = "✘"
+format = '[$symbol $status]($style) '
+style = "bold vermelho"
+
+[jobs]
+# Background job count. Appears from 1.
+symbol = "󰜎 "
+number_threshold = 1
+symbol_threshold = 1
+format = '[$symbol$number]($style) '
+style = "bold roxo"
+
+[container]
+# Warns when you are INSIDE a container.
+format = '[$symbol \[$name\]]($style) '
+style = "bold amarelo"
+
+[cmd_duration]
+min_time = 2_000
+format = '[󱎫 $duration]($style) '
+style = "bold amarelo"
+
+[time]
+disabled = false
+time_format = "%R"
+format = '[ $time]($style)'
+style = "cinza"
+
+[character]
+success_symbol = '[❯](bold verde)'
+error_symbol = '[❯](bold vermelho)'
+vimcmd_symbol = '[❮](bold roxo)'

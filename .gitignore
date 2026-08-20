@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NO SECRETS. This repository is PUBLIC.
+# The real policy is a mental allowlist: if you can't say why a file is safe,
+# it doesn't go in. The lines below are the net, not the policy.
+# ─────────────────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+*.gpg
+*.asc
+.netrc
+.npmrc
+.pypirc
+**/credentials
+**/secrets*
+**/*_token*
+**/*_secret*
+.aws/
+.gnupg/
+# NOT a blanket `.ssh/`: that rule silently swallowed this repo's own
+# ssh/ package, so the generic multiplex fragment was never committed.
+# Block the KEYS by name instead — precise beats broad when the broad rule
+# also hides something you meant to publish.
+# Caught by tests/repo-hygiene.test.sh, which fails if the fragment is untracked.
+**/.ssh/id_*
+**/.ssh/*_rsa
+**/.ssh/*_ed25519
+**/.ssh/known_hosts*
+**/.ssh/authorized_keys
+**/.ssh/cm/
+
+# Local tool state — derived, not configuration
+.DS_Store
+*.swp
+*~
+.zcompdump*
+.zsh_history
+.bash_history
+*.log
+.rtk-eval/
+
+# Your real allowlist — derived from YOUR sessions, never versioned.
+# The .example is the template; see .claude/settings.json.example
+.claude/settings.local.json
+.claude/settings.json

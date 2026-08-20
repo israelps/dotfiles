@@ -1,0 +1,50 @@
+# ── Typography ──────────────────────────────────────────────────────────────
+# A Nerd Font is required: the prompt uses glyphs from it. Without one you get
+# boxes where the icons should be.
+font-family = "JetBrainsMono Nerd Font"
+font-size = 14
+font-thicken = true
+
+# ── Theme ───────────────────────────────────────────────────────────────────
+# Ghostty ships hundreds of themes; `ghostty +list-themes` shows them.
+# This one matches the Starship palette in starship.toml.
+theme = tokyonight
+
+background-opacity = 0.95
+# `background-blur` is the canonical key; `background-blur-radius` is the old
+# name and still resolves. Ghostty does NOT accept a trailing comment on the
+# same line as a value — it silently parsed one as part of the number and the
+# blur came out 0. Verify with `ghostty +show-config`, never by reading the file.
+background-blur = 20
+
+# ── Window ──────────────────────────────────────────────────────────────────
+window-padding-x = 12
+window-padding-y = 12
+window-decoration = true
+macos-titlebar-style = tabs
+macos-option-as-alt = true
+
+# ── Shell integration ───────────────────────────────────────────────────────
+# Ghostty injects zsh integration on its own — nothing to add to .zshrc.
+# These two are opt-in: ssh-terminfo installs Ghostty's terminfo on the remote
+# host (kills "unknown terminal type" over SSH); ssh-env forwards the variables.
+# Verify what actually resolved with:  ghostty +show-config
+shell-integration-features = ssh-env,ssh-terminfo
+
+# ── Notification for long commands ──────────────────────────────────────────
+# Default is `never`. Measured on the machine this repo came from: 651 Bash
+# commands ran longer than 30s across 254 agent sessions, totalling 19.5 hours
+# of waiting. Without this you either watch the terminal or lose the time.
+#
+# The 30s threshold is measured, not taste: >10s would fire on 8.9% of commands
+# (noise), >30s fires on 4.7%, >60s on 3.0%.
+#
+# `unfocused` only notifies when you are not looking at that surface, which is
+# exactly the case that costs you. Requires shell integration (enabled above).
+# `no-bell` is explicit: the default action is `bell,no-notify`, so asking for
+# `notify` alone would silently keep the bell too. A desktop notification is
+# the signal; a bell on every long command is noise.
+# Available since Ghostty 1.3.0.
+notify-on-command-finish = unfocused
+notify-on-command-finish-action = no-bell,notify
+notify-on-command-finish-after = 30s

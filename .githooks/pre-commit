@@ -1,0 +1,13 @@
+#!/bin/sh
+# Local barrier against committing a secret. Enable with:
+#   git config core.hooksPath .githooks
+# CI repeats the scan over the full history — this hook is the first line,
+# not the only one.
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --pre-commit --staged --redact --no-banner; then
+    echo "gitleaks found a possible secret in the staged files. Commit aborted." >&2
+    exit 1
+  fi
+else
+  echo "warning: gitleaks not installed (brew install gitleaks) — skipping local scan." >&2
+fi
