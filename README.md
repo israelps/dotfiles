@@ -67,6 +67,7 @@ This boundary is the part most dotfiles repos get wrong.
 | `~/.ssh/config` — your hosts, users, key paths | `ssh/.ssh/config.d/10-multiplex.conf` — no host appears in it |
 | `.claude/settings.local.json` — your allowlist, which reveals how you work | `.claude/settings.json.example` — a template |
 | `~/.claude/projects/**` — your transcripts | `measure/analyze.py` — reads them locally, sends nothing |
+| `~/.claude/settings.json` — model, plugins, status line, and rewritten at runtime by `/config` | `claude/.claude/rules/` — portable knowledge, plus the env vars in `zsh/.zshrc` |
 | Credentials, in `.env` or a password manager | `.gitignore` blocking the known patterns |
 
 **One manual step** the installer cannot do for you, because the file is yours.
@@ -81,6 +82,24 @@ Include ~/.ssh/config.d/*.conf
 a published fragment.
 
 ---
+
+## It tunes Claude Code too, from the same place
+
+Claude Code inherits the shell environment, so its settings live in
+`zsh/.zshrc` rather than in `~/.claude/settings.json` — that file is rewritten
+at runtime by `/config` and `/permissions`, so a versioned copy would fight the
+tool.
+
+| Variable | Measured reason |
+|---|---|
+| `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` | fullscreen uses the alternate screen buffer, which kills native scrollback — so search, `jump_to_prompt` and triple-click-to-select stop working *inside* a session, undoing what this repo configures in the terminal |
+| `BASH_DEFAULT_TIMEOUT_MS=300000` | 120s covered 99.70% of 12,874 calls, leaving 38 outside; 300s leaves 5, and the curve is flat past that |
+
+And one it deliberately does **not** set: `MAX_MCP_OUTPUT_TOKENS`. Raising the
+25k cap looks obvious, but across 254 sessions exactly **one** call passed the
+10k warning and **none** hit the cap.
+
+Details, including what is still unaddressed: [`docs/claude-code-tuning.md`](docs/claude-code-tuning.md)
 
 ## Properties, executable
 
@@ -126,7 +145,7 @@ that it reads private transcripts locally.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/dotfiles ~/projects/dev/.dotfiles
+git clone https://github.com/israelps/dotfiles ~/projects/dev/.dotfiles
 cd ~/projects/dev/.dotfiles
 brew bundle
 ./install.sh          # --dry-run to preview
@@ -180,6 +199,8 @@ gives you the numbers, not a rooting interest.
 ├── .claude/
 │   ├── settings.json.example
 │   └── rules/{shell,tests}.md     # paths:-scoped, load only where they apply
+├── claude/.claude/rules/           # portable user-level rules
+├── docs/claude-code-tuning.md
 ├── measure/analyze.py
 ├── tests/                          # lib.sh + 5 suites
 ├── install.sh · verify.sh · Brewfile

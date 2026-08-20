@@ -49,3 +49,8 @@ id_ed25519*
 # The .example is the template; see .claude/settings.json.example
 .claude/settings.local.json
 .claude/settings.json
+# Never version a user-level settings.json: Claude Code rewrites it at runtime
+# via /config and /permissions, so a tracked copy fights the tool. The env vars
+# it would hold live in zsh/.zshrc instead. See docs/claude-code-tuning.md
+claude/.claude/settings.json
+claude/.claude/settings.local.json

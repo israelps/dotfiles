@@ -4,7 +4,7 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PACKAGES=(zsh starship ghostty ssh)
+PACKAGES=(zsh starship ghostty ssh claude)
 DRY_RUN=0
 
 for arg in "$@"; do

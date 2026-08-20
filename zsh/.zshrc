@@ -101,24 +101,52 @@ if [[ $- == *i* ]]; then
   unalias egrep fgrep 2>/dev/null
 fi
 
-# ── 5. Prompt ───────────────────────────────────────────────────────────────
+# ── 5. Claude Code ──────────────────────────────────────────────────────────
+# Claude Code inherits the shell environment, so these belong here rather than
+# in ~/.claude/settings.json — that file is rewritten at runtime by /config and
+# /permissions, so a versioned copy of it would fight the tool.
+#
+# DISABLE_ALTERNATE_SCREEN keeps the conversation in the terminal's NATIVE
+# scrollback instead of the alternate screen buffer. Without it, everything
+# this repo configures in Ghostty is dead inside a Claude Code session: no
+# search, no jump_to_prompt (super+arrow), no triple-click to select a
+# command's output. Fullscreen exists for terminals where render throughput is
+# the bottleneck — the docs name VS Code, tmux and iTerm2. Ghostty is
+# GPU-accelerated and is not one of them.
+#
+# Revert by unsetting this and running `/tui fullscreen`.
+export CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1
+
+# Default Bash timeout, raised from 120s. Measured over 12,874 calls that did
+# NOT pass an explicit timeout:
+#     120s covers 99.70%  ->  38 calls fall outside
+#     300s covers 99.96%  ->   5 calls fall outside
+#     600s covers 99.97%  ->   4   (the curve is already flat)
+# 17 calls actually timed out, and 899 (6.5%) had to carry an explicit timeout
+# the agent needed to remember.
+#
+# The trade is real and 300s is where it balances: a genuinely hung command now
+# blocks for five minutes instead of two. Longer buys almost nothing.
+export BASH_DEFAULT_TIMEOUT_MS=300000
+
+# ── 6. Prompt ───────────────────────────────────────────────────────────────
 # The right-hand prompt (right_format in starship.toml) needs this: without it
 # zsh reserves an extra column at the edge and the alignment drifts.
 # Source: starship.rs/advanced-config
 ZLE_RPROMPT_INDENT=0
 eval "$(starship init zsh)"
 
-# ── 6. fzf ──────────────────────────────────────────────────────────────────
+# ── 7. fzf ──────────────────────────────────────────────────────────────────
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-# ── 7. zoxide ───────────────────────────────────────────────────────────────
+# ── 8. zoxide ───────────────────────────────────────────────────────────────
 # Interactive only: it replaces `cd` itself, and a script or agent doing
 # `cd /abs/path` must get the builtin.
 if [[ $- == *i* ]]; then
   eval "$(zoxide init zsh --cmd cd)"
 fi
 
-# ── 8. autosuggestions, then syntax-highlighting LAST ───────────────────────
+# ── 9. autosuggestions, then syntax-highlighting LAST ───────────────────────
 source "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 # Must be the final source in this file: it wraps the ZLE widgets every earlier

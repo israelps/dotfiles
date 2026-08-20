@@ -17,7 +17,8 @@ git rev-parse --git-dir >/dev/null 2>&1 || { echo "  SKIP  not a git repo yet"; 
 
 # --- must SHIP -------------------------------------------------------------
 for f in ssh/.ssh/config.d/10-multiplex.conf zsh/.zshrc verify.sh CLAUDE.md \
-         starship/.config/starship.toml ghostty/.config/ghostty/config; do
+         starship/.config/starship.toml ghostty/.config/ghostty/config \
+         claude/.claude/rules/context7.md docs/claude-code-tuning.md; do
   if git check-ignore -q "$f" 2>/dev/null; then
     bad "$f is publishable" "a .gitignore rule is hiding it"
   else
@@ -29,7 +30,7 @@ done
 # Probe with paths that do not exist: check-ignore answers on the rule, not the
 # file, so this needs no fixture and leaves nothing behind.
 for f in ssh/.ssh/id_rsa ssh/.ssh/id_ed25519 .env .claude/settings.local.json \
-         ssh/.ssh/known_hosts .rtk-eval/bin/rtk; do
+         ssh/.ssh/known_hosts .rtk-eval/bin/rtk claude/.claude/settings.json; do
   if git check-ignore -q "$f" 2>/dev/null; then
     ok "$f is blocked"
   else
