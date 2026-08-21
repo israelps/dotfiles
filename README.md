@@ -129,6 +129,7 @@ Documentation rots. These do not:
 | `repo-hygiene` | the repo publishes what it means to and nothing it does not, and no tracked file carries a personal absolute path |
 | `deps-installed` | `brew bundle check` passes, every formula the Brewfile declares is installed, and every unguarded `source` in `.zshrc` resolves |
 | `rules-hygiene` | every rule in `.claude/rules/` declares what it covers and what backs it, in a closed vocabulary, within the context ceiling |
+| `path-entries` | every directory `.zshrc` prepends to `$PATH` exists — no residue from an uninstalled tool |
 
 The suite earned its keep on its first run: it caught oh-my-zsh's own unguarded
 `ls` and `grep` leaking into non-interactive shells — a leak neither the author
@@ -215,7 +216,7 @@ dotfiles/
 ├── claude/.claude/rules/           # portable user-level rules
 ├── docs/claude-code-tuning.md
 ├── measure/analyze.py
-├── tests/                          # lib.sh + 8 suites
+├── tests/                          # lib.sh + 9 suites
 ├── install.sh · verify.sh · Brewfile
 ├── zsh/ · starship/ · ghostty/ · ssh/
 └── .github/workflows/gitleaks.yml

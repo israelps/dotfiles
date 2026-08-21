@@ -11,9 +11,6 @@
 # ============================================================================
 
 # ── 1. PATH and fpath — BEFORE oh-my-zsh ────────────────────────────────────
-export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
-export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
-export PATH="$HOME/.antigravity-ide/antigravity-ide/bin:$PATH"
 export PATH="$HOME/.rd/bin:$PATH"          # Rancher Desktop
 export PATH="$HOME/.local/bin:$PATH"
 
