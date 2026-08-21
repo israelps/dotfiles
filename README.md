@@ -92,10 +92,20 @@ tool.
 
 | Variable | Measured reason |
 |---|---|
-| `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` | fullscreen uses the alternate screen buffer, which kills native scrollback — so search, `jump_to_prompt` and triple-click-to-select stop working *inside* a session, undoing what this repo configures in the terminal |
 | `BASH_DEFAULT_TIMEOUT_MS=300000` | 120s covered 99.70% of 12,874 calls, leaving 38 outside; 300s leaves 5, and the curve is flat past that |
 
-And one it deliberately does **not** set: `MAX_MCP_OUTPUT_TOKENS`. Raising the
+And two it deliberately does **not** set.
+
+`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` shipped here once and was reversed. It
+forces the classic renderer and, worse, makes `/tui` refuse to switch — so it
+silently locks you out of fullscreen, including the escape hatch meant to undo
+it. Fullscreen carries `/focus`, click-to-expand tool results, flat memory in
+long conversations and scrollback that survives compaction; what it gives up is
+recoverable on demand (`Ctrl+o` then `[` for native search, `Shift`+drag for
+native selection). Full account, including the argument that was wrong, in
+[docs/claude-code-tuning.md](docs/claude-code-tuning.md).
+
+The other is `MAX_MCP_OUTPUT_TOKENS`. Raising the
 25k cap looks obvious, but across 254 sessions exactly **one** call passed the
 10k warning and **none** hit the cap.
 

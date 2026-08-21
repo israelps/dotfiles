@@ -21,19 +21,6 @@ the problem rather than managing it.
 
 ## Applied
 
-### `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`
-
-Fullscreen rendering uses the terminal's **alternate screen buffer**. Inside a
-Claude Code session that buffer replaces native scrollback, so everything this
-repo configures in the terminal stops working: no scrollback search, no
-`jump_to_prompt` (`super+↑/↓`), no triple-click to select a command's output.
-
-The documented benefit of fullscreen is for *"terminal emulators where
-rendering throughput is a bottleneck, such as VS Code, tmux, and iTerm2"*.
-Ghostty is GPU-accelerated and is not one of them.
-
-Revert: unset the variable and run `/tui fullscreen`.
-
 ### `BASH_DEFAULT_TIMEOUT_MS=300000`
 
 Measured over 12,874 calls that passed no explicit timeout:
@@ -50,6 +37,57 @@ longer buys almost nothing while making a genuine hang cost five minutes
 instead of two.
 
 ## Measured and rejected
+
+### `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` — set, then reversed
+
+This repo shipped it. It was wrong, and the reason it was wrong is worth keeping.
+
+**The argument used:** fullscreen replaces native scrollback, so *"everything
+this repo configures in the terminal stops working"*, and the docs name VS Code,
+tmux and iTerm2 as the terminals that benefit — Ghostty is GPU-accelerated and
+is not one of them.
+
+**Both halves were wrong.** What this repo configures in Ghostty is font, theme,
+padding and command-finish notifications — none of which fullscreen touches. And
+the VS Code/tmux/iTerm2 line is about *flicker* specifically, which is one of
+several benefits. The others do not depend on terminal throughput at all:
+
+| Fullscreen gives | Can a tuned terminal do it? |
+|---|---|
+| `/focus` — prompt, tool summary with diffstats, response | no, app-level |
+| click a collapsed tool result to expand it | no, app-level |
+| flat memory in long conversations | no, app-level |
+| scrollback that survives repeated compactions | no, app-level |
+| `Ctrl+o` transcript with `less`-style `/` search, `n`/`N`, `{`/`}` | no, app-level |
+| copy-on-select | yes, but the TUI has it too (`/config` → Copy on select) |
+
+**What is actually given up is recoverable on demand**, which the original entry
+missed entirely:
+
+| Lost | Recovery |
+|---|---|
+| `Cmd+f` over the conversation | `Ctrl+o` then `[` writes the whole conversation into native scrollback |
+| native click-drag selection | hold `Shift` while dragging; or `CLAUDE_CODE_DISABLE_MOUSE_CLICKS=1` for always |
+| open in an editor | `Ctrl+o` then `v` |
+
+**Ghostty is among the better-supported terminals here.** The docs name it three
+times, each time favourably: kitty keyboard protocol so `Cmd+c` copies, wheel
+events already amplified so scrolling is not sluggish, and special handling so a
+plain click opens a link.
+
+**The second failure mode, which is the expensive one:** the variable does not
+merely prefer the classic renderer. With it in the environment, `/tui` refuses to
+change anything and reports *"Nothing was changed"* — so the escape hatch the
+original entry documented (*"unset the variable and run `/tui fullscreen`"*) does
+not work while the variable is still exported. A setting that disables the
+command meant to undo it is a trap, not a preference.
+
+**Caveat, stated:** fullscreen is a documented **research preview**. It is the
+default for accounts that first used Claude Code on or after 2026-05-06.
+
+Enable with `/tui fullscreen` — it saves the `tui` setting, so no variable is
+needed. `/tui default` reverts.
+
 
 ### `MAX_MCP_OUTPUT_TOKENS` — leave it alone
 

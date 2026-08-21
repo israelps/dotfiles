@@ -106,16 +106,12 @@ fi
 # in ~/.claude/settings.json — that file is rewritten at runtime by /config and
 # /permissions, so a versioned copy of it would fight the tool.
 #
-# DISABLE_ALTERNATE_SCREEN keeps the conversation in the terminal's NATIVE
-# scrollback instead of the alternate screen buffer. Without it, everything
-# this repo configures in Ghostty is dead inside a Claude Code session: no
-# search, no jump_to_prompt (super+arrow), no triple-click to select a
-# command's output. Fullscreen exists for terminals where render throughput is
-# the bottleneck — the docs name VS Code, tmux and iTerm2. Ghostty is
-# GPU-accelerated and is not one of them.
-#
-# Revert by unsetting this and running `/tui fullscreen`.
-export CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1
+# NOT set here: CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN. It forces the classic
+# renderer, and it also makes /tui refuse to switch — so it silently locks you
+# out of fullscreen. Fullscreen is the richer mode: /focus, click-to-expand tool
+# results, flat memory in long conversations, and scrollback that survives
+# compaction. Native search and selection are recoverable on demand (Ctrl+o then
+# `[`, or hold Shift while dragging). See docs/claude-code-tuning.md.
 
 # Default Bash timeout, raised from 120s. Measured over 12,874 calls that did
 # NOT pass an explicit timeout:
