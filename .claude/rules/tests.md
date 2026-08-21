@@ -1,5 +1,7 @@
 ---
+description: How a property test is written here — state the invariant, prove it cannot pass vacuously, and stay on macOS bash 3.2.
 paths: ["tests/**", "verify.sh"]
+proved-by: tests/lib.sh
 ---
 
 # Writing a property test

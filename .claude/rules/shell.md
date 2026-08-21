@@ -1,5 +1,7 @@
 ---
+description: The interactivity split, the aliases that must never shadow POSIX, oh-my-zsh leaks, and the order .zshrc depends on.
 paths: ["zsh/**", "ssh/**"]
+proved-by: tests/no-posix-shadow.test.sh
 ---
 
 # Shell and SSH

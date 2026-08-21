@@ -68,7 +68,9 @@ fixing. A change with no number behind it does not belong here.
 
 ## Reference
 
-- Rules scoped to areas: `.claude/rules/` (loaded when you touch matching paths)
+- Rules: `.claude/rules/` — path-scoped ones load when you touch matching
+  paths; a rule with no `paths:` is always loaded. Writing one is itself
+  governed by `.claude/rules/policy-layer.md`.
 - Claude Code memory & rules: https://code.claude.com/docs/en/memory
 - Starship config: https://starship.rs/config
 - Ghostty config: https://ghostty.org/docs/config/reference
