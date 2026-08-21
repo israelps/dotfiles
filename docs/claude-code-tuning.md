@@ -107,6 +107,28 @@ Raising a limit you never reach adds risk and buys nothing.
 Ghostty defaults to 10 MB. The busiest session in the sample produced 5.9 MB of
 tool output. **Zero** sessions would have overflowed.
 
+### A `keybind` for Shift+Enter — Ghostty needs none
+
+`/terminal-setup` exists because most terminals cannot tell Shift+Enter from
+Enter: both arrive as CR, so the newline-in-prompt binding has to be faked with
+a keybind that sends `ESC` + `CR`. On Ghostty the command reports there is
+nothing to configure.
+
+Verified rather than taken on faith, on Ghostty 1.3.1:
+`ghostty +list-keybinds --default` binds `super+enter` and `super+shift+enter`
+and **nothing** on `shift+enter` — so the key is never intercepted, it reaches
+the application. What makes it distinguishable there is the Kitty keyboard
+protocol, which Ghostty implements; its own terminfo entry names it
+(`keyprotocol=ghostty:kitty`).
+
+So: **do not add a keybind for it.** One copied from an iTerm2-era setup would
+send `ESC` + `CR` on top of a protocol that already reports the key correctly.
+
+No test for this one, deliberately. The property is a *default of Ghostty*, not
+a claim this repo makes — `ghostty/.config/ghostty/config` says nothing about
+keybinds, and asserting someone else's default would test the vendor, not us.
+The line worth defending is the absence, and absence is what this entry records.
+
 ## Still open
 
 **Output volume, not failures, is the larger cost.** The same sessions carried
