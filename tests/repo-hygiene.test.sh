@@ -38,6 +38,20 @@ for f in ssh/.ssh/id_rsa ssh/.ssh/id_ed25519 .env .claude/settings.local.json \
   fi
 done
 
+# --- no tracked file may point at a .zshrc block BY NUMBER -----------------
+# Numbering is positional, so inserting one block silently invalidates every
+# reference below it — and nothing errors. Measured: a conda block added to
+# `zsh/.zshrc` shifted the sections and left BOTH existing pointers wrong (the
+# Brewfile aimed "block 8" at syntax-highlighting, by then the 9th; a comment
+# aimed "block 5" at the prompt, by then the 6th). Neither was noticed until
+# the block came out. Name the section instead — a name does not shift.
+numeric="$(git grep -nE '\.zshrc block [0-9]|block [0-9]+ of .*\.zshrc' 2>/dev/null | tr '\n' ' ' || true)"
+if [ -n "$numeric" ]; then
+  bad "no tracked file points at a .zshrc block by number" "$numeric"
+else
+  ok "no tracked file points at a .zshrc block by number"
+fi
+
 # --- nothing tracked may carry a personal absolute path --------------------
 # The pattern is BUILT at runtime on purpose. Written literally, this file would
 # contain the very string it forbids and the check would fail on itself — a

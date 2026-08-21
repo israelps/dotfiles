@@ -8,7 +8,7 @@ brew "starship"                   # prompt (already a Rust binary — see README
 
 # ── Shell ───────────────────────────────────────────────────────────────────
 brew "zsh-autosuggestions"
-brew "zsh-syntax-highlighting"    # MUST be sourced last — see zsh/.zshrc block 8
+brew "zsh-syntax-highlighting"    # MUST be sourced last — see the final block of zsh/.zshrc
 brew "stow"                       # the symlink manager this repo uses
 
 # ── Modern CLI tools ────────────────────────────────────────────────────────

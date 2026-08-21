@@ -22,9 +22,9 @@ export PATH="$HOME/.local/bin:$PATH"
 # ── 2. oh-my-zsh ────────────────────────────────────────────────────────────
 export ZSH="$HOME/.oh-my-zsh"
 
-# No theme: Starship draws the prompt (block 5). Loading a theme here and then
-# letting `starship init` overwrite it means paying for two prompt engines and
-# using one.
+# No theme: Starship draws the prompt (see the Prompt block). Loading a theme
+# here and then letting `starship init` overwrite it means paying for two
+# prompt engines and using one.
 ZSH_THEME=""
 
 # Measured with zprof: the update check cost 127 ms on EVERY shell opened —
@@ -50,24 +50,7 @@ if [[ $- != *i* ]]; then
   unalias ls grep egrep fgrep 2>/dev/null
 fi
 
-# ── 3. conda (optional) ─────────────────────────────────────────────────────
-# Tolerant block: does nothing when miniconda isn't installed. No absolute
-# path, so this file stays usable on any machine or username. The previous
-# version unconditionally appended a non-existent directory to PATH.
-CONDA_ROOT="${CONDA_ROOT:-$HOME/miniconda3}"
-if [ -x "$CONDA_ROOT/bin/conda" ]; then
-    __conda_setup="$("$CONDA_ROOT/bin/conda" 'shell.zsh' 'hook' 2>/dev/null)"
-    if [ $? -eq 0 ]; then
-        eval "$__conda_setup"
-    elif [ -f "$CONDA_ROOT/etc/profile.d/conda.sh" ]; then
-        . "$CONDA_ROOT/etc/profile.d/conda.sh"
-    else
-        export PATH="$CONDA_ROOT/bin:$PATH"
-    fi
-    unset __conda_setup
-fi
-
-# ── 4. Aliases ──────────────────────────────────────────────────────────────
+# ── 3. Aliases ──────────────────────────────────────────────────────────────
 # Own names: always available, collide with nothing.
 alias ll='eza -lah --icons=auto --git'
 alias la='eza -a  --icons=auto'
@@ -98,7 +81,7 @@ if [[ $- == *i* ]]; then
   unalias egrep fgrep 2>/dev/null
 fi
 
-# ── 5. Claude Code ──────────────────────────────────────────────────────────
+# ── 4. Claude Code ──────────────────────────────────────────────────────────
 # Claude Code inherits the shell environment, so these belong here rather than
 # in ~/.claude/settings.json — that file is rewritten at runtime by /config and
 # /permissions, so a versioned copy of it would fight the tool.
@@ -122,24 +105,24 @@ fi
 # blocks for five minutes instead of two. Longer buys almost nothing.
 export BASH_DEFAULT_TIMEOUT_MS=300000
 
-# ── 6. Prompt ───────────────────────────────────────────────────────────────
+# ── 5. Prompt ───────────────────────────────────────────────────────────────
 # The right-hand prompt (right_format in starship.toml) needs this: without it
 # zsh reserves an extra column at the edge and the alignment drifts.
 # Source: starship.rs/advanced-config
 ZLE_RPROMPT_INDENT=0
 eval "$(starship init zsh)"
 
-# ── 7. fzf ──────────────────────────────────────────────────────────────────
+# ── 6. fzf ──────────────────────────────────────────────────────────────────
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-# ── 8. zoxide ───────────────────────────────────────────────────────────────
+# ── 7. zoxide ───────────────────────────────────────────────────────────────
 # Interactive only: it replaces `cd` itself, and a script or agent doing
 # `cd /abs/path` must get the builtin.
 if [[ $- == *i* ]]; then
   eval "$(zoxide init zsh --cmd cd)"
 fi
 
-# ── 9. autosuggestions, then syntax-highlighting LAST ───────────────────────
+# ── 8. autosuggestions, then syntax-highlighting LAST ───────────────────────
 source "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 # Must be the final source in this file: it wraps the ZLE widgets every earlier

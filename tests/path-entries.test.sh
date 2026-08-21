@@ -12,8 +12,10 @@
 #   third-party installer editing it edits TRACKED source.
 #
 #   Only UNGUARDED lines are checked, and the grep enforces that by anchoring on
-#   column 0. The conda block prepends from inside `if [ -x .../conda ]` — it is
-#   allowed to name a directory that does not exist, because it tests first.
+#   column 0. A line that prepends from inside an `if [ -x ... ]` is allowed to
+#   name a directory that does not exist, because it tests before it uses. The
+#   conda block was that case until it was removed; the distinction stays, for
+#   the next one.
 # shellcheck source=tests/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 echo "▸ every PATH entry resolves"
