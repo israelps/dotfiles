@@ -126,6 +126,8 @@ Documentation rots. These do not:
 | `exit-codes` | failures report non-zero, and nothing opens a pager that would block an agent |
 | `prompt-no-hang` | the prompt spawns no unbounded subprocess and emits no warning |
 | `ssh-multiplex` | connections are reused, the socket path survives the ~104-byte limit, and no host leaks into a fragment |
+| `repo-hygiene` | the repo publishes what it means to and nothing it does not, and no tracked file carries a personal absolute path |
+| `deps-installed` | every formula the Brewfile declares is actually installed, and every unguarded `source` in `.zshrc` resolves |
 
 The suite earned its keep on its first run: it caught oh-my-zsh's own unguarded
 `ls` and `grep` leaking into non-interactive shells — a leak neither the author
@@ -155,8 +157,8 @@ that it reads private transcripts locally.
 ## Install
 
 ```bash
-git clone https://github.com/israelps/dotfiles ~/projects/dev/.dotfiles
-cd ~/projects/dev/.dotfiles
+git clone https://github.com/israelps/dotfiles ~/projects/dev/dotfiles
+cd ~/projects/dev/dotfiles
 brew bundle
 ./install.sh          # --dry-run to preview
 ./verify.sh           # prove the properties hold on your machine
@@ -204,7 +206,7 @@ gives you the numbers, not a rooting interest.
 ## Structure
 
 ```
-.dotfiles/
+dotfiles/
 ├── README.md · CLAUDE.md          # humans · agents (2 screens, per the docs)
 ├── .claude/
 │   ├── settings.json.example
@@ -212,7 +214,7 @@ gives you the numbers, not a rooting interest.
 ├── claude/.claude/rules/           # portable user-level rules
 ├── docs/claude-code-tuning.md
 ├── measure/analyze.py
-├── tests/                          # lib.sh + 5 suites
+├── tests/                          # lib.sh + 7 suites
 ├── install.sh · verify.sh · Brewfile
 ├── zsh/ · starship/ · ghostty/ · ssh/
 └── .github/workflows/gitleaks.yml
