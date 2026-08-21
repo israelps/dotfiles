@@ -127,7 +127,7 @@ Documentation rots. These do not:
 | `prompt-no-hang` | the prompt spawns no unbounded subprocess and emits no warning |
 | `ssh-multiplex` | connections are reused, the socket path survives the ~104-byte limit, and no host leaks into a fragment |
 | `repo-hygiene` | the repo publishes what it means to and nothing it does not, and no tracked file carries a personal absolute path |
-| `deps-installed` | every formula the Brewfile declares is actually installed, and every unguarded `source` in `.zshrc` resolves |
+| `deps-installed` | `brew bundle check` passes, every formula the Brewfile declares is installed, and every unguarded `source` in `.zshrc` resolves |
 
 The suite earned its keep on its first run: it caught oh-my-zsh's own unguarded
 `ls` and `grep` leaking into non-interactive shells — a leak neither the author

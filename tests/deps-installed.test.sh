@@ -41,6 +41,7 @@ while read -r kind name; do
     zsh-autosuggestions)     probe="file:$PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ;;
     zsh-syntax-highlighting) probe="file:$PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ;;
     ripgrep)                 probe="bin:rg" ;;
+    coreutils)               probe="bin:timeout" ;;
     starship|stow|eza|bat|fd|fzf|zoxide|xh|shellcheck|gitleaks|tmux)
                              probe="bin:$name" ;;
     *)
@@ -71,6 +72,31 @@ if [ "$checked" -ge 12 ]; then
   ok "parsed the Brewfile ($checked entries)"
 else
   bad "parsed the Brewfile" "only $checked entries matched — the sed pattern no longer fits Brewfile"
+fi
+
+# --- brew's own view of the same file --------------------------------------
+# The table above proves PRESENCE, offline and by our own reckoning. This proves
+# presence AND freshness, using brew's answer instead of ours. Both stay, because
+# they fail on different things: the table is the one that catches a formula
+# nobody taught this suite about, and it is the one that still runs when brew
+# cannot reach its API.
+#
+# HOMEBREW_NO_AUTO_UPDATE=1 keeps a full repository refresh off the hot path of
+# every ./verify.sh. It does NOT weaken the check — an outdated formula is still
+# reported outdated; that is how `fzf` at 0.74.2 against a 0.74.3 stable was
+# caught. Bounded, so a stalled API cannot hang the suite.
+if ! command -v timeout >/dev/null 2>&1; then
+  bad "brew bundle check passes" "cannot run it bounded — timeout(1) is missing, and macOS ships none"
+else
+  bundle_rc=0
+  HOMEBREW_NO_AUTO_UPDATE=1 timeout 120 brew bundle check --file=Brewfile >/dev/null 2>&1 || bundle_rc=$?
+  case "$bundle_rc" in
+    0)   ok "brew bundle check passes" ;;
+    124) bad "brew bundle check passes" "timed out after 120s — brew could not reach its API" ;;
+    *)   unmet="$(HOMEBREW_NO_AUTO_UPDATE=1 timeout 120 brew bundle check --verbose --file=Brewfile 2>&1 \
+                  | sed -n 's/^.*Formula \([^ ]*\) needs.*/\1/p' | tr '\n' ' ')"
+         bad "brew bundle check passes" "unmet: ${unmet:-rc=$bundle_rc} — run: brew bundle install" ;;
+  esac
 fi
 
 # --- every unguarded `source` in .zshrc resolves --------------------------

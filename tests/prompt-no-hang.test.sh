@@ -44,12 +44,23 @@ else
 fi
 
 # 3. Render must be fast, and must not hang. 124 = timeout had to kill it.
-render_rc=0
-timeout 10 env STARSHIP_CONFIG="$TOML" starship prompt >/dev/null 2>&1 || render_rc=$?
-if [ "$render_rc" -eq 124 ]; then
-  bad "prompt renders without hanging" "timed out"
+#    The guard on `timeout` itself is not paranoia. macOS ships no timeout(1) —
+#    it comes from coreutils, which this repo did not declare until now. With it
+#    absent the run returns 127, which is not 124, so the old `else` branch
+#    reported PASS while nothing had been rendered. Measured by hiding `timeout`
+#    from $PATH and watching this line go green. Any non-zero rc now fails: a
+#    prompt that exits 1 has not rendered, whatever the reason.
+if ! command -v timeout >/dev/null 2>&1; then
+  bad "prompt renders without hanging" \
+      "timeout(1) is missing (brew install coreutils) — this check cannot run, and must not pretend it did"
 else
-  ok "prompt renders without hanging"
+  render_rc=0
+  timeout 10 env STARSHIP_CONFIG="$TOML" starship prompt >/dev/null 2>&1 || render_rc=$?
+  case "$render_rc" in
+    0)   ok "prompt renders without hanging" ;;
+    124) bad "prompt renders without hanging" "timed out after 10s" ;;
+    *)   bad "prompt renders without hanging" "starship exited rc=$render_rc" ;;
+  esac
 fi
 
 # 4. Rendering must emit no warning. A warning means a module silently vanished.
