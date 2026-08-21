@@ -79,6 +79,22 @@ if [[ $- == *i* ]]; then
   # grep, that becomes nonsense — with grep=rg it meant `rg -E`, and -E is
   # --encoding, so `egrep -i x f` died with "unknown encoding: -i", rc=2.
   unalias egrep fgrep 2>/dev/null
+
+  # Destructive, so it lives behind the same guard — for the opposite reason.
+  # The shadows above are guarded to stop an agent inheriting a WRONG command;
+  # this one is guarded to stop an agent inheriting a DESTRUCTIVE one. `gogc`
+  # wipes ~4.6 GB of module cache and ~3.6 GB of build cache, and everything it
+  # deletes must be downloaded or compiled again.
+  #
+  # Only the module cache needs it. `go help cache`: "The go command
+  # periodically deletes cached data that has not been used recently" — the
+  # BUILD cache already prunes itself. The module cache has no pruning at all,
+  # no TTL and no size cap (`go env` exposes only GOCACHE, GOCACHEPROG and
+  # GOMODCACHE), and `go clean -modcache` removes the entire thing or nothing.
+  # It is also not urgent: counted by download month, the cache grew in two
+  # bursts (155 zips in 2026-06, 143 in 2026-07) and a handful in the others —
+  # so this is a command you run when the disk is tight, not on a timer.
+  alias gogc='go clean -modcache && go clean -cache'
 fi
 
 # ── 4. Claude Code ──────────────────────────────────────────────────────────

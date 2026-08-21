@@ -17,6 +17,11 @@ Measured on the machine this repo came from: Claude Code's Bash tool runs with
 `$-` = `569JNRXghkl` — no `i` — and an unguarded `alias cat=bat` still applied.
 `cat -v file` then failed, because `bat` has no `-v`.
 
+**An alias that deletes or overwrites goes behind the same guard**, even when
+it shadows nothing. The shadows are guarded so an agent does not inherit a
+wrong command; a destructive one is guarded so an agent does not inherit a
+loaded gun. `gogc` wipes ~8 GB of Go caches and lives inside the `if`.
+
 **Never shadow `grep` or `curl`**, not even guarded. `rg` honours `.gitignore`,
 so a search comes back empty with no explanation; `xh` reads `-s` as `--style`.
 Expose them under their own names (`rgg`, `xh`).

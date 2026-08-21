@@ -27,4 +27,19 @@ done
 kind_i="$(zsh_interactive 'whence -w ls | cut -d: -f2 | tr -d " "')"
 assert_eq "ls IS an alias in an interactive shell (convenience preserved)" "alias" "$kind_i"
 
+# --- a DESTRUCTIVE alias must not reach a non-interactive shell -------------
+# Same guard as the shadows above, opposite reason. Those are guarded so an
+# agent does not inherit a WRONG command; `gogc` is guarded so an agent does
+# not inherit a DESTRUCTIVE one — it wipes the Go module and build caches,
+# ~8 GB that must be downloaded and compiled again. The failure this catches
+# is a one-character edit: an alias written outside the `if` block.
+gogc_n="$(zsh_noninteractive 'whence -w gogc | cut -d: -f2 | tr -d " "')"
+if [ "$gogc_n" = "alias" ]; then
+  bad "gogc is NOT reachable non-interactively" "it is an alias outside the interactivity guard"
+else
+  ok "gogc is NOT reachable non-interactively"
+fi
+gogc_i="$(zsh_interactive 'whence -w gogc | cut -d: -f2 | tr -d " "')"
+assert_eq "gogc IS an alias when a human is typing" "alias" "$gogc_i"
+
 summary
