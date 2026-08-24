@@ -67,6 +67,27 @@ else
   ok "no tracked file hardcodes a personal home path"
 fi
 
+# --- an unbraced expansion must not touch a multibyte character ------------
+# Measured while writing .githooks/post-checkout: an expansion written directly
+# against a box-drawing character makes the shell scan the longest valid
+# identifier after the dollar and eat that character's leading 0xe2 byte into
+# the variable NAME. The siren's frame rendered with a replacement character.
+# Braced, the line starts e2 94 80; unbraced, 94 80.
+#
+# The class lists the multibyte characters this repo actually uses, and that is
+# a STATED LIMIT, not an oversight: BSD grep in a UTF-8 locale cannot match a
+# raw byte range, so `[\200-\377]` silently matches nothing. Verified both ways
+# against a fixture — the literal class finds the broken form and leaves the
+# braced one alone; the byte range found neither.
+mb='\$[A-Za-z_][A-Za-z0-9_]*[─—▸·§→←]'
+unbraced="$(git ls-files -z 2>/dev/null | xargs -0 grep -ln "$mb" 2>/dev/null | tr '\n' ' ' || true)"
+if [ -n "$unbraced" ]; then
+  bad "no tracked file expands a variable straight into a multibyte character" \
+      "$unbraced — use \${VAR} there"
+else
+  ok "no tracked file expands a variable straight into a multibyte character"
+fi
+
 # --- a counted claim in a doc is a claim nobody checks ---------------------
 # Both of these were already wrong before anyone noticed: README said "9 suites"
 # while tests/ held 10, and named `rules/{shell,tests}.md` while .claude/rules/
