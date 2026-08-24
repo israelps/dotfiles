@@ -42,8 +42,11 @@ shell-integration-features = ssh-env,ssh-terminfo
 # `unfocused` only notifies when you are not looking at that surface, which is
 # exactly the case that costs you. Requires shell integration (enabled above).
 # `no-bell` is explicit: the default action is `bell,no-notify`, so asking for
-# `notify` alone would silently keep the bell too. A desktop notification is
-# the signal; a bell on every long command is noise.
+# `notify` alone would silently keep the bell too. Measured on 1.3.1 by writing
+# exactly that and reading `ghostty +show-config` back: it resolved
+# `bell,notify`. A desktop notification is the signal; a bell on every long
+# command is noise. `tests/ghostty-config.test.sh` re-checks the vendor default,
+# so this reason cannot go stale without the suite saying so.
 # Available since Ghostty 1.3.0.
 notify-on-command-finish = unfocused
 notify-on-command-finish-action = no-bell,notify
