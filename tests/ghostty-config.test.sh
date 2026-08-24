@@ -26,6 +26,7 @@
 # shellcheck source=tests/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 echo "▸ ghostty resolved configuration"
+declare_checkout_state
 
 CONF="$DOTFILES_DIR/ghostty/.config/ghostty/config"
 
@@ -43,19 +44,25 @@ fi
 assert_rc "the config file exists" 0 test -f "$CONF"
 
 # --- 0. The resolved config must BE this repo's file -----------------------
-# Without this, every assertion below could be describing a hand-edited
+# Without this, every LIVE assertion below could be describing a hand-edited
 # ~/.config/ghostty/config and still report green — the suite would be
 # measuring someone else's terminal. Compared by device:inode rather than by
-# path text: `stat` is the BSD one on macOS and the GNU one elsewhere, and
-# neither realpath(1) nor readlink -f is guaranteed to exist here.
+# path text, through _inode() from tests/checkout-state.sh: `stat` is the BSD
+# one on macOS and the GNU one elsewhere, and neither realpath(1) nor
+# readlink -f is guaranteed to exist here.
 LIVE="$HOME/.config/ghostty/config"
-live_id="$(stat -L -f '%d:%i' "$LIVE" 2>/dev/null || stat -L -c '%d:%i' "$LIVE" 2>/dev/null || echo absent)"
-repo_id="$(stat -L -f '%d:%i' "$CONF" 2>/dev/null || stat -L -c '%d:%i' "$CONF" 2>/dev/null || echo missing)"
-if [ "$live_id" = "$repo_id" ]; then
-  ok "\$HOME/.config/ghostty/config is this repo's file"
+if live_checks_apply; then
+  live_id="$(_inode "$LIVE")"
+  repo_id="$(_inode "$CONF")"
+  if [ "$live_id" = "$repo_id" ]; then
+    ok "\$HOME/.config/ghostty/config is this repo's file"
+  else
+    bad "\$HOME/.config/ghostty/config is this repo's file" \
+        "run ./install.sh — every live check below would describe another config"
+  fi
 else
-  bad "\$HOME/.config/ghostty/config is this repo's file" \
-      "run ./install.sh — every check below would describe another config"
+  skip "\$HOME/.config/ghostty/config is this repo's file" \
+       "linked worktree — \$HOME points at the main checkout, which is the point"
 fi
 
 # --- 1. The file must parse clean ------------------------------------------
@@ -63,6 +70,13 @@ fi
 # reports `invalid value "20 # radius"` and exits 1 rather than accepting it.
 # Verified by feeding it exactly that line.
 assert_rc "ghostty +validate-config accepts the file" 0 "$GHOSTTY" +validate-config --config-file="$CONF"
+
+# --- 2 and 3, live only ----------------------------------------------------
+# Everything from here to the end of section 3 reads the RUNNING Ghostty, not
+# the file. In a linked worktree that is the main checkout's Ghostty, so the
+# answers would be true and about the wrong thing. Held in a function purely so
+# the body below keeps its shape.
+live_ghostty_checks() {
 
 # --- 2. Read what Ghostty resolved -----------------------------------------
 # `+show-config` prints ONLY what differs from the default; `--default` prints
@@ -141,6 +155,22 @@ for f in ssh-env ssh-terminfo; do
     *)        bad "shell-integration-features includes $f" "resolved: ${feats:-unset}" ;;
   esac
 done
+}
+
+if live_checks_apply; then
+  live_ghostty_checks
+else
+  RESOLVED=""
+  for what in \
+      "macos-option-as-alt resolves true (Option+Enter, Option+P reach the prompt)" \
+      "notify-on-command-finish is on" \
+      "notify-on-command-finish-action = no-bell,notify (desktop notification, no bell)" \
+      "notify-on-command-finish-after = 30s (the measured threshold)" \
+      "shell integration is enabled — notify-on-command-finish depends on it" \
+      "shell-integration-features includes ssh-env and ssh-terminfo"; do
+    skip "$what" "linked worktree — this reads the RUNNING Ghostty, which the main checkout configures"
+  done
+fi
 
 # --- 4. Fidelity: every key in the file is the key Ghostty holds ------------
 # The general form of the trailing-comment bug. Nothing is hand-picked here:
@@ -154,6 +184,9 @@ while IFS= read -r line; do
   case "$val" in '"'*'"') val="${val#\"}"; val="${val%\"}" ;; esac
   [ "$key" = shell-integration-features ] && continue   # merged; asserted above
   keys=$((keys + 1))
+  # Parsing the file and counting its keys is a FILE property — true or false
+  # in any checkout. Only the comparison below needs the running Ghostty.
+  live_checks_apply || continue
   if printf '%s\n' "$RESOLVED" | grep -qx "$key = $val"; then
     ok "$key = $val"
   elif printf '%s\n' "$RESOLVED" | grep -q "^$key = "; then
@@ -165,7 +198,11 @@ while IFS= read -r line; do
   fi
 done < <(grep -E '^[a-z][a-z0-9-]* = ' "$CONF" 2>/dev/null || true)
 
+live_checks_apply || skip "every key in the file is the key Ghostty holds" \
+  "linked worktree — $keys keys parsed and left uncompared, by design"
+
 # A loop that read nothing would have reported a clean sweep of zero keys.
+# This one is unconditional: it reads the file, so a worktree can break it.
 if [ "$keys" -ge 10 ]; then
   ok "checked $keys keys from the file against the resolved config"
 else

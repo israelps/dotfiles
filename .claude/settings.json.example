@@ -6,6 +6,10 @@
   "//3": "actually prompt in your sessions. Publishing your real allowlist",
   "//4": "publishes the shape of your commands — keep it local.",
 
+  "//4b": "git wt promote and git wt clean --yes are absent on purpose: promote",
+  "//4c": "fast-forwards main in the live checkout, changing the running config",
+  "//4d": "the moment it runs. Bash(git wt clean) matches only the bare form.",
+
   "//5": "Derived on the machine this repo came from: cd (28x), echo (22x),",
   "//6": "ls (12x), cat (10x), wc (8x) were the commands that most often",
   "//7": "stopped for a permission prompt. They are read-only and safe.",
@@ -22,7 +26,10 @@
       "Bash(printenv)",
       "Bash(git status *)",
       "Bash(git log *)",
-      "Bash(git diff *)"
+      "Bash(git diff *)",
+      "Bash(git wt list)",
+      "Bash(git wt new *)",
+      "Bash(git wt clean)"
     ],
     "deny": [
       "Read(./.env)",

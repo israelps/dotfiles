@@ -170,6 +170,43 @@ Open a new terminal. Undo with `stow -D zsh starship ghostty ssh`.
 
 ---
 
+## Working on a branch
+
+`~/.zshrc` and friends are symlinks into this checkout, so **`git switch` here
+is not a branch change, it is a reconfiguration of the machine.** Starship and
+ssh re-read their config on every invocation, so those flip immediately;
+`.zshrc` lands on the next shell, including the next agent session. That delay
+is what makes it dangerous — nothing looks wrong until something is.
+
+So branch work happens in a linked worktree, where nothing under `$HOME`
+points:
+
+```bash
+git wt new fix/ghostty-blur     # ../dotfiles-wt/fix/ghostty-blur, off main
+git wt list                     # every worktree: dirty / merged / locked
+git wt clean                    # what it would remove — dry run
+git wt clean --yes              # actually remove it
+git wt promote fix/ghostty-blur # merge --ff-only into main, remove, verify
+```
+
+`./install.sh` sets the `git wt` alias; without it, call `./tools/wt.sh`
+directly. Only `list` runs from inside a worktree — everything that mutates
+must run from the main checkout, because `git wt` executes the *active
+branch's* copy of the script.
+
+Three things back this up rather than a promise to be careful:
+
+- `./install.sh` **refuses** to run from a linked worktree.
+- `.githooks/post-checkout` warns when this checkout leaves `main`. It is a
+  siren, not a barrier: `git stash`, `git reset --hard`, `git merge` and
+  `stow -D` change the live config and fire no hook at all.
+- The suites know the difference between a *file* property and a *live-machine*
+  property, and say `SKIP` — never `PASS` — for the second kind in a worktree.
+
+Full account: [`docs/worktree-workflow.md`](docs/worktree-workflow.md)
+
+---
+
 ## Things that sound right and measured wrong
 
 Half the value of measuring is what it stops you building:
@@ -212,15 +249,24 @@ dotfiles/
 ├── README.md · CLAUDE.md          # humans · agents (2 screens, per the docs)
 ├── .claude/
 │   ├── settings.json.example
-│   └── rules/{shell,tests}.md     # paths:-scoped, load only where they apply
-├── claude/.claude/rules/           # portable user-level rules
-├── docs/claude-code-tuning.md
+│   └── rules/                      # shell, tests — paths:-scoped, load only
+│                                   #   where they apply; policy-layer, signals
+│                                   #   — always loaded
+├── claude/.claude/rules/           # portable user-level rules (context7)
+├── docs/                           # claude-code-tuning, worktree-workflow
 ├── measure/analyze.py
-├── tests/                          # lib.sh + 9 suites
+├── tools/wt.sh                     # `git wt` — branch work in linked worktrees
+├── tests/                          # lib.sh + checkout-state.sh + 11 suites
+├── .githooks/                      # pre-commit (gitleaks), post-checkout (siren)
 ├── install.sh · verify.sh · Brewfile
 ├── zsh/ · starship/ · ghostty/ · ssh/
 └── .github/workflows/gitleaks.yml
 ```
+
+The top-level directories that are *not* stow packages are `docs/`, `measure/`,
+`tools/` and `tests/`. Everything else at that level is a package: `install.sh`
+names them explicitly, and adding a directory that looks like one but is not is
+how tooling ends up symlinked into `$HOME`.
 
 Every file carries, in comments, the measured reason for each choice.
 

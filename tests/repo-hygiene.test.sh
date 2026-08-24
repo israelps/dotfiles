@@ -67,4 +67,34 @@ else
   ok "no tracked file hardcodes a personal home path"
 fi
 
+# --- a counted claim in a doc is a claim nobody checks ---------------------
+# Both of these were already wrong before anyone noticed: README said "9 suites"
+# while tests/ held 10, and named `rules/{shell,tests}.md` while .claude/rules/
+# held four files. This repo's whole argument is that a number needs something
+# behind it; a number in its own README is not exempt.
+# The claim is the NUMBER, so that is what is matched — not the prose around
+# it. Pinning the whole phrase would make this fail when the sentence is
+# reworded, which is asserting the punctuation instead of the fact.
+n_suites="$(find "$DOTFILES_DIR/tests" -name '*.test.sh' 2>/dev/null | wc -l | tr -d ' ')"
+if grep -q "+ $n_suites suites" README.md 2>/dev/null; then
+  ok "README's suite count matches tests/ ($n_suites)"
+else
+  bad "README's suite count matches tests/" \
+      "tests/ holds $n_suites; README says: $(grep -o '+ [0-9]* suites' README.md 2>/dev/null || echo '(no count found)')"
+fi
+
+# Every rule file has to be named in README's tree. Asserting the brace
+# expansion literally would test the punctuation; this tests the claim.
+missing_rules=""
+for r in "$DOTFILES_DIR"/.claude/rules/*.md; do
+  [ -e "$r" ] || continue
+  base="$(basename "$r" .md)"
+  grep -q "$base" README.md 2>/dev/null || missing_rules="$missing_rules $base"
+done
+if [ -n "$missing_rules" ]; then
+  bad "README names every rule in .claude/rules/" "missing:$missing_rules"
+else
+  ok "README names every rule in .claude/rules/"
+fi
+
 summary

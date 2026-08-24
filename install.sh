@@ -21,6 +21,33 @@ done
 info() { printf '  %s\n' "$*"; }
 erro() { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; }
 
+# ── 0. Am I the main checkout? ──────────────────────────────────────────────
+# This script points $HOME at THIS directory. Run from a linked worktree it
+# would repoint the live shell at a branch — the exact accident the worktree
+# workflow exists to prevent (docs/worktree-workflow.md).
+#
+# Checked before --dry-run is honoured on purpose: a dry run from the wrong
+# directory should say "wrong directory", not print a plausible plan.
+#
+# The main worktree is the only place --git-dir and --git-common-dir agree.
+if git -C "$DOTFILES_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  # `|| echo ''` on both: `set -e` plus a failing command substitution in an
+  # assignment kills the script, and --path-format needs git >= 2.31.
+  gd="$(git -C "$DOTFILES_DIR" rev-parse --path-format=absolute --git-dir 2>/dev/null || echo '')"
+  gc="$(git -C "$DOTFILES_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo '')"
+  if [ -z "$gd" ] || [ -z "$gc" ]; then
+    # Older git: fall back to the shape on disk. A linked worktree's .git is a
+    # FILE holding `gitdir: …`; the main worktree's is a directory.
+    if [ -f "$DOTFILES_DIR/.git" ]; then gd=linked; gc=main; else gd=main; gc=main; fi
+  fi
+  if [ "$gd" != "$gc" ]; then
+    erro "this is a linked worktree, not the main checkout"
+    info "installing from here would point \$HOME at this branch"
+    info "run it from:  ${gc%/.git}"
+    exit 1
+  fi
+fi
+
 # ── 1. Dependências ─────────────────────────────────────────────────────────
 echo "▸ Checking dependencies"
 missing_bins=()
@@ -34,7 +61,46 @@ if [ ${#missing_bins[@]} -gt 0 ]; then
 fi
 info "ok — stow, zsh and starship are present"
 
-# ── 2. Conflitos ────────────────────────────────────────────────────────────
+# ── 2. Repository settings ──────────────────────────────────────────────────
+# Two settings this repo needs that git cannot ship: hooks are never committed,
+# and an alias is config, not content.
+#
+# --local on both, and not as a default: a `!`-alias runs from the top of the
+# ACTIVE worktree, so a global alias.wt would try to run ./tools/wt.sh in every
+# unrelated repository. --local also lands in .git/config, which every linked
+# worktree SHARES — set once here, `git wt` works from all of them.
+echo "▸ Repository settings"
+if ! git -C "$DOTFILES_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  info "not a git checkout — skipping hooks and the wt alias"
+else
+  # A DIFFERENT existing value is never overwritten. Silently rewriting
+  # someone's core.hooksPath is worse than not setting it: they lose hooks they
+  # wrote and nothing says so. Warn, print the one-line fix, carry on.
+  #
+  # Checked with --local, not the effective value: a GLOBAL hooksPath should be
+  # overridden here without complaint. `git config --get` exits 1 when unset and
+  # this script runs `set -e`, hence `|| true` INSIDE the substitution — the
+  # assignment's own status is what -e inspects.
+  set_local() {   # set_local <key> <wanted> <human description>
+    local key="$1" want="$2" what="$3" cur
+    cur="$(git -C "$DOTFILES_DIR" config --local --get "$key" 2>/dev/null || true)"
+    if [ "$cur" = "$want" ]; then
+      info "$what already set"
+    elif [ -n "$cur" ]; then
+      erro "$key is '$cur', not '$want' — leaving it alone"
+      info "to switch:  git config --local $key '$want'"
+    elif [ "$DRY_RUN" -eq 1 ]; then
+      info "would set $key = $want"
+    else
+      git -C "$DOTFILES_DIR" config --local "$key" "$want"
+      info "set $key = $want"
+    fi
+  }
+  set_local core.hooksPath .githooks "the hooks path"
+  set_local alias.wt '!./tools/wt.sh' "the git wt alias"
+fi
+
+# ── 3. Conflitos ────────────────────────────────────────────────────────────
 # A REAL file (not a symlink) at the destination would either be swallowed by
 # stow --adopt or make stow abort. Better to detect it and say so up front.
 echo "▸ Looking for conflicts"
@@ -63,7 +129,7 @@ if [ "$conflicts" -gt 0 ]; then
 fi
 info "ok — no real file would be overwritten"
 
-# ── 3. Directories the config needs to exist ────────────────────────────────
+# ── 4. Directories the config needs to exist ────────────────────────────────
 # ssh refuses a control socket in a directory others can enter, and it will not
 # create the directory itself.
 if [ ! -d "$HOME/.ssh/cm" ]; then
@@ -78,7 +144,7 @@ else
   info "\$HOME/.ssh/cm ok"
 fi
 
-# ── 4. Symlinks ─────────────────────────────────────────────────────────────
+# ── 5. Symlinks ─────────────────────────────────────────────────────────────
 echo "▸ Creating symlinks"
 stow_flags=(-v -d "$DOTFILES_DIR" -t "$HOME")
 [ "$DRY_RUN" -eq 1 ] && stow_flags+=(-n)
@@ -89,7 +155,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
   exit 0
 fi
 
-# ── 5. Verification ──────────────────────────────────────────────────────────
+# ── 6. Verification ──────────────────────────────────────────────────────────
 echo "▸ Verifying"
 zsh -n "$DOTFILES_DIR/zsh/.zshrc" && info ".zshrc syntax ok"
 if starship prompt >/dev/null 2>&1; then

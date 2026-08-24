@@ -13,6 +13,7 @@
 # shellcheck source=tests/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 echo "▸ ssh connection multiplexing"
+declare_checkout_state
 
 FRAG="$DOTFILES_DIR/ssh/.ssh/config.d/10-multiplex.conf"
 assert_rc "the multiplex fragment exists" 0 test -f "$FRAG"
@@ -36,16 +37,27 @@ else
   ok "the fragment carries no host-specific data"
 fi
 
+# Everything above reads the FRAGMENT — true or false in any checkout, so it
+# runs everywhere. Everything below reads the MACHINE: the control directory
+# and the resolved ssh config belong to whichever checkout stow was run from.
+# In a linked worktree they describe the main checkout, so they are skipped.
+
 # ssh refuses to use a control dir that others can enter.
-if [ -d "$HOME/.ssh/cm" ]; then
-  perm="$(stat -f '%Lp' "$HOME/.ssh/cm" 2>/dev/null || stat -c '%a' "$HOME/.ssh/cm" 2>/dev/null)"
-  assert_eq "\$HOME/.ssh/cm is 0700" "700" "$perm"
+if live_checks_apply; then
+  if [ -d "$HOME/.ssh/cm" ]; then
+    assert_eq "\$HOME/.ssh/cm is 0700" "700" "$(_mode "$HOME/.ssh/cm")"
+  else
+    bad "\$HOME/.ssh/cm exists" "run ./install.sh"
+  fi
 else
-  bad "\$HOME/.ssh/cm exists" "run ./install.sh"
+  skip "\$HOME/.ssh/cm is 0700" \
+       "linked worktree — the control directory belongs to the main checkout"
 fi
 
 # The whole chain has to resolve — fragment + your private config.
-if command -v ssh >/dev/null 2>&1; then
+if ! command -v ssh >/dev/null 2>&1; then
+  skip "ssh -G resolves the multiplex directives (Include chain works)" "ssh not installed"
+elif live_checks_apply; then
   out="$(ssh -G example.invalid 2>/dev/null | grep -ciE '^controlmaster auto|^controlpersist' || true)"
   if [ "${out:-0}" -ge 2 ]; then
     ok "ssh -G resolves the multiplex directives (Include chain works)"
@@ -53,6 +65,9 @@ if command -v ssh >/dev/null 2>&1; then
     bad "ssh -G resolves the multiplex directives" \
         "add the Include line to the TOP of \$HOME/.ssh/config"
   fi
+else
+  skip "ssh -G resolves the multiplex directives (Include chain works)" \
+       "linked worktree — ssh reads \$HOME/.ssh/config.d, which points at the main checkout"
 fi
 
 summary

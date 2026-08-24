@@ -1,0 +1,78 @@
+#!/bin/sh
+# A siren, not a barrier. Enable with:
+#   git config core.hooksPath .githooks     (./install.sh does this for you)
+#
+# This checkout is the live config: ~/.zshrc, ~/.config/starship.toml,
+# ~/.config/ghostty/config and ~/.ssh/config.d are stow symlinks into it. By
+# the time this hook runs the working tree has ALREADY changed — there is no
+# pre-checkout hook in git, so warning after the fact is the only thing
+# available.
+#
+# WHAT THIS CANNOT SEE, and it is half of invariant 6:
+#   git reset --hard, git stash push/pop, git merge, git pull (merge), stow -D
+# All of them change the live config and fire no post-checkout at all. This is
+# a partial net. CLAUDE.md invariant 6 is still the actual rule.
+#
+# The hook's exit status BECOMES the exit status of git switch / git checkout,
+# so: no `set -e`, and an explicit `exit 0` at the end. A siren that makes
+# `git switch` return non-zero breaks every script and IDE that shells out.
+
+# 1. Path checkout (`git checkout -- file`, `git restore`): nothing moved.
+[ "$3" = 1 ] || exit 0
+
+# 2. Null old-ref means the checkout CREATED this tree — git clone, or
+#    git worktree add. Nothing was changed out from under anyone.
+#    Tested as "contains a character that is not 0" so it holds for both SHA-1
+#    and SHA-256 repositories, whose null refs differ in length.
+case "$1" in *[!0]*) ;; *) exit 0 ;; esac
+
+gd=$(git rev-parse --path-format=absolute --git-dir 2>/dev/null) || exit 0
+gc=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
+
+# 3. A linked worktree. Changing branches there is the entire point of the
+#    workflow — measured: `git worktree add` runs this hook with cwd set to the
+#    NEW worktree, so without this rule `git wt new` would trip its own alarm.
+[ "$gd" = "$gc" ] || exit 0
+
+# 4. Rebase and bisect check out a commit they intend to put back.
+#    git-rebase(1) §Hooks: both backends call post-checkout, once, for the
+#    starting-point commit — "by accident of implementation". Without this the
+#    siren cries wolf on one of the most common commands there is.
+for f in rebase-merge rebase-apply BISECT_START; do
+  if [ -e "$gd/$f" ]; then exit 0; fi
+done
+
+branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) || branch='(detached)'
+
+# 5. Landing on main is the CURE. Warning about it teaches people to ignore
+#    the warning, which is how a siren stops working.
+[ "$branch" = main ] && exit 0
+
+# 6. Only warn on the machine this repo actually configures. This is a public
+#    repo: in someone else's clone there is no live config to break, and an
+#    alarm there is noise that makes the real one less credible.
+top=${gc%/.git}
+_id() { stat -L -f '%d:%i' "$1" 2>/dev/null || stat -L -c '%d:%i' "$1" 2>/dev/null; }
+[ "$(_id "$HOME/.zshrc")" = "$(_id "$top/zsh/.zshrc")" ] || exit 0
+
+if [ -t 2 ]; then Y=$(printf '\033[1;33m'); O=$(printf '\033[0m'); else Y=''; O=''; fi
+
+# stderr, not stdout: stdout belongs to git switch and is routinely piped.
+# One command per line, short paths, nothing chained — CLAUDE.md § "Handing a
+# command to the owner". `git switch main && …` would revert the live config on
+# the first half and strand you if the second never ran.
+{
+  printf '%s\n' "$Y──────────────────────────────────────────────────────────────$O"
+  printf '%s\n' "$Y  THIS CHECKOUT IS THE LIVE CONFIG — it is now on '$branch'.$O"
+  printf '%s\n' "    live already:  starship, ssh   (both read per invocation)"
+  printf '%s\n' "    next shell:    .zshrc          (including the next agent)"
+  printf '%s\n' ""
+  printf '%s\n' "  Put the machine back:"
+  printf '%s\n' "      git switch main"
+  printf '%s\n' ""
+  printf '%s\n' "  Work on '$branch' without touching this machine:"
+  printf '%s\n' "      git wt new $branch"
+  printf '%s\n' "$Y──────────────────────────────────────────────────────────────$O"
+} >&2
+
+exit 0

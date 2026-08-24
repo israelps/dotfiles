@@ -34,6 +34,13 @@ stow -D zsh starship ghostty ssh   # undo
    running shell — they are not inert here. Leave the repo on `main`; if work
    goes to a branch, merge it back in the same sitting. A branch left checked
    out is a shell configured by whatever that branch happens to say.
+   **Do branch work in a linked worktree instead** — `git wt new <branch>`
+   puts it in `../dotfiles-wt/<branch>`, where nothing under `$HOME` points,
+   and `git wt promote <branch>` merges it back and removes it. `install.sh`
+   refuses to run from a worktree, and `.githooks/post-checkout` warns if this
+   checkout ever leaves `main` — a siren, not a barrier: `git stash`,
+   `git reset --hard`, `git merge` and `stow -D` fire no hook at all.
+   Full account: `docs/worktree-workflow.md`.
 
 ## Handing a command to the owner
 
