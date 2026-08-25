@@ -44,6 +44,10 @@ id_ed25519*
 .bash_history
 *.log
 .rtk-eval/
+# Instruments: clones of OTHER repositories, fetched by measure/bootstrap.sh.
+# Versioning them would vendor a third party into this one and put its history
+# inside our numbers. tests/instruments.test.sh asserts this rule holds.
+.instruments/
 
 # Your real allowlist — derived from YOUR sessions, never versioned.
 # The .example is the template; see .claude/settings.json.example

@@ -163,6 +163,7 @@ git clone https://github.com/israelps/dotfiles ~/projects/dev/dotfiles
 cd ~/projects/dev/dotfiles
 brew bundle
 ./install.sh          # --dry-run to preview
+./measure/bootstrap.sh # the instruments behind the numbers below
 ./verify.sh           # prove the properties hold on your machine
 ```
 
@@ -226,7 +227,13 @@ Half the value of measuring is what it stops you building:
 
 ## Prompt choice
 
-Measured with [`zsh-bench`](https://github.com/romkatv/zsh-bench), 2 runs × 16 iterations:
+Measured with [`zsh-bench`](https://github.com/romkatv/zsh-bench), 2 runs × 16 iterations.
+
+Run `./measure/bootstrap.sh` and you can take these numbers again yourself —
+`tests/instruments.test.sh` fails if you cannot. What the instrument can and
+cannot see, measured here on 2026-08-25 at `-i 3`: three runs of one unchanged
+config spread 8.2 ms (3.3%), and a `sleep 0.4` injected into that config showed
+up as 440 ms. It resolves hundreds of milliseconds; it is blind below ten.
 
 | | `first_prompt_lag` | `command_lag` | `input_lag` |
 |---|---|---|---|
@@ -252,9 +259,9 @@ dotfiles/
 │   └── rules/                      # scoped and always-on rules, below
 ├── claude/.claude/rules/           # portable user-level rules (context7)
 ├── docs/                           # claude-code-tuning, worktree-workflow
-├── measure/analyze.py
+├── measure/                        # analyze.py, bootstrap.sh — the slow lane
 ├── tools/wt.sh                     # `git wt` — branch work in linked worktrees
-├── tests/                          # lib.sh + checkout-state.sh + 11 suites
+├── tests/                          # lib.sh + checkout-state.sh + 12 suites
 ├── .githooks/                      # pre-commit (gitleaks), post-checkout (siren)
 ├── install.sh · verify.sh · Brewfile
 ├── zsh/ · starship/ · ghostty/ · ssh/
