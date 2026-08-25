@@ -36,6 +36,7 @@ echo "▸ the instruments behind the numbers"
 cd "$DOTFILES_DIR" || { bad "cannot enter repo"; summary; exit 1; }
 
 INSTRUMENTS_DIR="$DOTFILES_DIR/.instruments"
+MAIN_WT="$(main_worktree_path)"; [ -n "$MAIN_WT" ] || MAIN_WT="$DOTFILES_DIR"
 
 # instrument_probe <name> -> prints "<kind>:<target>|<claim it backs>", or
 # nothing when this suite does not know the tool. Always exits 0.
@@ -108,5 +109,25 @@ if [ -d "$INSTRUMENTS_DIR" ]; then
 else
   skip ".instruments/ is gitignored" "the directory does not exist yet — run: ./measure/bootstrap.sh"
 fi
+
+# --- 4. the slow lane's entry point, checked in the fast lane --------------
+# measure/compare.sh cannot be exercised here — one run takes about a minute
+# and varies, which is the whole reason .claude/rules/tests.md puts it in the
+# other lane. What CAN be asserted cheaply is that it refuses the inputs that
+# would produce a meaningless number, and every one of these refusals happens
+# before a single benchmark starts.
+CMP="$DOTFILES_DIR/measure/compare.sh"
+assert_rc "measure/compare.sh is executable" 0 test -x "$CMP"
+
+# Comparing the live checkout against itself would print a table of pure noise
+# dressed as a result.
+assert_fails "compare.sh refuses the main checkout as a candidate" "$CMP" "$MAIN_WT"
+
+# A directory that is not a checkout has no zsh/.zshrc, so ZDOTDIR would fall
+# through to an empty config and the arm would measure a shell nobody has.
+assert_fails "compare.sh refuses a directory that is not a checkout" "$CMP" /tmp
+
+# No argument must not silently mean "compare against something".
+assert_fails "compare.sh refuses to run with no candidate" "$CMP"
 
 summary

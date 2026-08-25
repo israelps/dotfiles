@@ -154,6 +154,30 @@ triggers three retries costs four — plus output volume by tool and command
 duration. See [`measure/README.md`](measure/README.md), including the notice
 that it reads private transcripts locally.
 
+### Measure a change before it is live
+
+```bash
+git wt new fix/faster-prompt        # a checkout $HOME does not point at
+./measure/compare.sh ../dotfiles-wt/fix/faster-prompt
+```
+
+This is what makes the repo's own rule — *show the measurement that justifies
+it* — possible to follow. Before it existed, measuring a config change meant
+installing it first, so the rule demanded exactly the risk the worktree
+workflow exists to avoid.
+
+It runs `zsh-bench` **A-B-A-B-A**, both arms driven through `ZDOTDIR` and
+`STARSHIP_CONFIG` so the only difference between them is the config under test,
+and it reports every delta next to the **noise floor of that same run**. A
+delta inside the floor prints as *not resolvable*, never as a figure — the tool
+sees hundreds of milliseconds and is blind below ten, and saying "3 ms faster"
+would be inventing precision it does not have.
+
+Both arms are replicated because the first version was not, and a control
+caught it: run against a candidate byte-identical to the live config, a lucky
+pair of baseline samples landed 1.5 ms apart and the tool reported
+`exit_time_ms SLOWER by 3.7 ms` — a difference between a config and itself.
+
 ---
 
 ## Install
