@@ -88,6 +88,38 @@ else
   ok "no tracked file expands a variable straight into a multibyte character"
 fi
 
+# --- undated numbers: a ratchet, not a wall --------------------------------
+# A number that passed its controls still rots, because what it measured keeps
+# changing. Measured on 2026-08-25: zsh/.zshrc claimed a second `compinit`
+# "cost ~190 ms per shell". Re-taken with measure/compare.sh it was +15.9 ms of
+# prompt lag and -50.6 ms of first-command lag — a trade, not a cost. The old
+# figure was not wrong when written; ZSH_DISABLE_COMPFIX landed afterwards and
+# took ~29 ms of compaudit out of exactly that path. Nothing said so, because
+# the number carried no date.
+#
+# This is a CEILING THAT MAY FALL AND MAY NOT RISE. Failing on the whole
+# backlog would force someone to date numbers they cannot re-take today, which
+# buys a green suite with invented provenance — the very trade signals.md
+# forbids. Lower it when you re-measure something; never raise it.
+UNDATED_CEILING=5
+undated=0; withnum=0
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  grep -qE '[0-9]+(\.[0-9]+)? ?ms\b' "$f" 2>/dev/null || continue
+  withnum=$((withnum + 1))
+  grep -qE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' "$f" 2>/dev/null || undated=$((undated + 1))
+done < <(git ls-files 2>/dev/null || true)
+
+if [ "$withnum" -eq 0 ]; then
+  bad "the millisecond-claim scan found files to look at" \
+      "it matched nothing — the scan rotted, which reads exactly like a clean repo"
+elif [ "$undated" -le "$UNDATED_CEILING" ]; then
+  ok "undated numeric claims: $undated of $withnum files, ceiling $UNDATED_CEILING"
+else
+  bad "undated numeric claims stay at or below the ceiling" \
+      "$undated of $withnum files carry a number and no date, ceiling is $UNDATED_CEILING — date it, or re-take it with measure/compare.sh"
+fi
+
 # --- a counted claim in a doc is a claim nobody checks ---------------------
 # Both of these were already wrong before anyone noticed: README said "9 suites"
 # while tests/ held 10, and named `rules/{shell,tests}.md` while .claude/rules/

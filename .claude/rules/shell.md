@@ -48,7 +48,18 @@ in a fragment.
 ## Order in .zshrc
 
 `fpath` complete before `source oh-my-zsh.sh` (it calls `compinit`
-unconditionally — feeding fpath afterwards forces a second call, ~190 ms).
+unconditionally — feeding fpath afterwards forces a second call).
+
+That second call was recorded here as ~190 ms. Re-taken on 2026-08-25 with
+`measure/compare.sh`, which drives zsh-bench across both configs in one run, it
+is a trade rather than a cost: **+15.9 ms** of first-prompt lag against
+**−50.6 ms** of first-command lag, stable across three runs. The old figure was
+right when it was taken — `ZSH_DISABLE_COMPFIX=true` landed afterwards and
+removed ~29 ms of compaudit from that same path. It carried no date, so nothing
+announced that it had been overtaken.
+
+The ordering stays. Latency is not the only reason for it, and the rest of the
+reason has not been measured.
 `zsh-syntax-highlighting` is the last source in the file: it wraps ZLE widgets
 every earlier plugin registered.
 

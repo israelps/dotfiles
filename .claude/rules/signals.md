@@ -24,6 +24,23 @@ you never checked. Hence `not-applicable`, and hence prose that stays loaded.
   A count with no stated blind spot reads as complete.
 - **Say which cases you validated, never that "it works".** One probe is a probe.
 
+## A number without a date is already unverified
+
+A signal that passed its controls still rots, because the thing it measured
+keeps changing. The number stays in the file, in the present tense, long after
+it stopped being true — and nothing about it says so.
+
+- **When you write a number into a tracked file, write the date it was taken
+  and the instrument that took it.** Both, in the same comment. A number
+  nobody can re-take is a claim, and this repo does not accept claims.
+- **When you read an undated number, treat it as unverified until you re-take
+  it.** Not wrong — unverified. It was probably right on the day.
+
+Counted on 2026-08-25: ten tracked files carry a millisecond figure and seven
+of them contain no date at all. `tests/repo-hygiene.test.sh` holds that seven
+as a ceiling that may fall and may not rise. The debt is not the problem; the
+debt growing in silence is.
+
 ## Measured here
 
 Two failures on 2026-08-21, both caught by controls, neither by inspection:

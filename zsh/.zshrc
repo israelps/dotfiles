@@ -15,8 +15,23 @@ export PATH="$HOME/.rd/bin:$PATH"          # Rancher Desktop
 export PATH="$HOME/.local/bin:$PATH"
 
 # Docker Desktop completions. Placed here so oh-my-zsh's single compinit sees
-# them; Docker's installer appends a SECOND `compinit` at the end of the file,
-# which cost ~190 ms of compinit/compdump per shell. Don't let it come back.
+# them; Docker's installer appends a SECOND `compinit` at the end of the file.
+#
+# That second call was recorded here as costing ~190 ms per shell. Re-taken on
+# 2026-08-25 with `measure/compare.sh` (zsh-bench, three runs) it is not a cost
+# at all, it is a TRADE: +15.9 ms of first_prompt_lag, -50.6 ms of
+# first_command_lag, +16.4 ms of exit_time. The work moves from after the
+# prompt to before it.
+#
+# The old figure was not wrong when it was written. `ZSH_DISABLE_COMPFIX=true`
+# below landed afterwards and takes ~29 ms of compaudit out of exactly this
+# path; a second compinit WITH the security audit is a different animal. The
+# number carried no date, so nothing said it had been overtaken.
+#
+# Still keep the ordering. What is measured above is latency, and latency is
+# not the only reason: two compinit calls also rebuild completion state that
+# the first one already built. Whether the trade is worth taking deliberately
+# is an open question, and it needs a measurement this comment does not have.
 [ -d "$HOME/.docker/completions" ] && fpath=("$HOME/.docker/completions" $fpath)
 
 # ── 2. oh-my-zsh ────────────────────────────────────────────────────────────
