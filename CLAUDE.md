@@ -42,6 +42,23 @@ stow -D zsh starship ghostty ssh   # undo
    `git reset --hard`, `git merge` and `stow -D` fire no hook at all.
    Full account: `docs/worktree-workflow.md`.
 
+   **The live surface is the stow packages, and nothing else.** A save inside
+   `zsh/`, `starship/`, `ghostty/`, `ssh/` or `claude/` is live before any git
+   command runs — no commit, no switch, no hook involved. Everything else
+   (`tests/`, `docs/`, `measure/`, `tools/`, `README.md`, `.claude/`) is
+   ordinary source: edit it on `main`.
+
+   | Touching | Where to work |
+   |---|---|
+   | a stow package | `git wt new <branch>` → edit → `./measure/compare.sh` if it could affect latency → `./verify.sh` → commit there → `git wt promote` |
+   | anything else | `main`, directly |
+
+   `.claude/hooks/` enforces this for the agent: an `Edit` inside a package on
+   the stowed checkout is refused, as is `git switch`/`stash`/`reset --hard`.
+   `git switch main` is always allowed — it is the cure. The bound is real:
+   these constrain the agent, never the owner typing in their own terminal.
+   Driven by `tests/claude-hooks.test.sh`; wired by `./install.sh`.
+
 ## Handing a command to the owner
 
 Some acts only the owner can run. When you write one for them:

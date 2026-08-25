@@ -100,7 +100,67 @@ else
   set_local alias.wt '!./tools/wt.sh' "the git wt alias"
 fi
 
-# ── 3. Conflitos ────────────────────────────────────────────────────────────
+# ── 3. Agent guards ─────────────────────────────────────────────────────────
+# Claude Code hooks. The SCRIPTS are versioned in .claude/hooks/ and driven by
+# tests/claude-hooks.test.sh; only the POINTER to them is written here, because
+# .claude/settings.local.json is gitignored — Claude Code rewrites it at
+# runtime, so policy living inside it would be invisible to verify.sh and
+# absent from a fresh clone. Same split as .githooks plus core.hooksPath.
+#
+# These constrain the AGENT, not you typing in your own terminal. That bound is
+# real and is stated wherever this is described.
+echo "▸ Agent guards"
+if ! command -v python3 >/dev/null 2>&1; then
+  info "python3 missing — skipping the Claude Code hook wiring"
+elif [ "$DRY_RUN" -eq 1 ]; then
+  info "would wire .claude/hooks/* into .claude/settings.local.json"
+else
+  python3 - "$DOTFILES_DIR" <<'PY'
+import json, os, sys
+root = sys.argv[1]
+path = os.path.join(root, ".claude", "settings.local.json")
+h = os.path.join(root, ".claude", "hooks")
+
+want = {
+    "PreToolUse": [
+        {"matcher": "Edit|Write|NotebookEdit",
+         "hooks": [{"type": "command", "command": f"{h}/guard-live-edit.sh"}]},
+        {"matcher": "Bash",
+         "hooks": [{"type": "command", "command": f"{h}/guard-git.sh"}]},
+    ],
+    "SessionStart": [{"hooks": [{"type": "command", "command": f"{h}/session-start.sh"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": f"{h}/guard-stop.sh"}]}],
+}
+
+try:
+    with open(path) as fh:
+        data = json.load(fh)
+    existed = True
+except FileNotFoundError:
+    data = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
+    existed = False
+except Exception as e:
+    print(f"  could not read {path} ({e}) — leaving it alone")
+    sys.exit(0)
+
+cur = data.get("hooks")
+if cur == want:
+    print("  agent guards already wired")
+elif cur:
+    # Never clobber hooks someone else put there. Say what is missing and how.
+    print("  .claude/settings.local.json already defines hooks — leaving them alone")
+    print("  to adopt these, merge .claude/hooks/* into that file by hand")
+    sys.exit(0)
+else:
+    data["hooks"] = want
+    with open(path, "w") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+    print("  wired agent guards" + ("" if existed else " (created settings.local.json)"))
+PY
+fi
+
+# ── 4. Conflitos ────────────────────────────────────────────────────────────
 # A REAL file (not a symlink) at the destination would either be swallowed by
 # stow --adopt or make stow abort. Better to detect it and say so up front.
 echo "▸ Looking for conflicts"
@@ -129,7 +189,7 @@ if [ "$conflicts" -gt 0 ]; then
 fi
 info "ok — no real file would be overwritten"
 
-# ── 4. Directories the config needs to exist ────────────────────────────────
+# ── 5. Directories the config needs to exist ────────────────────────────────
 # ssh refuses a control socket in a directory others can enter, and it will not
 # create the directory itself.
 if [ ! -d "$HOME/.ssh/cm" ]; then
@@ -144,7 +204,7 @@ else
   info "\$HOME/.ssh/cm ok"
 fi
 
-# ── 5. Symlinks ─────────────────────────────────────────────────────────────
+# ── 6. Symlinks ─────────────────────────────────────────────────────────────
 echo "▸ Creating symlinks"
 stow_flags=(-v -d "$DOTFILES_DIR" -t "$HOME")
 [ "$DRY_RUN" -eq 1 ] && stow_flags+=(-n)
@@ -155,7 +215,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
   exit 0
 fi
 
-# ── 6. Verification ──────────────────────────────────────────────────────────
+# ── 7. Verification ──────────────────────────────────────────────────────────
 echo "▸ Verifying"
 zsh -n "$DOTFILES_DIR/zsh/.zshrc" && info ".zshrc syntax ok"
 if starship prompt >/dev/null 2>&1; then

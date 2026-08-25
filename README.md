@@ -219,7 +219,13 @@ directly. Only `list` runs from inside a worktree — everything that mutates
 must run from the main checkout, because `git wt` executes the *active
 branch's* copy of the script.
 
-Three things back this up rather than a promise to be careful:
+Four things back this up rather than a promise to be careful:
+
+- `.claude/hooks/` **refuses the edit itself**. A save inside a stow package on
+  the live checkout is live before any git command exists to be watched — that
+  is how a whole day's work went onto the live tree on 2026-08-25 with every
+  other guard silent. These are Claude Code hooks, so they constrain the agent
+  and not you typing in your own terminal.
 
 - `./install.sh` **refuses** to run from a linked worktree.
 - `.githooks/post-checkout` warns when this checkout leaves `main`. It is a
@@ -285,8 +291,9 @@ dotfiles/
 ├── docs/                           # claude-code-tuning, worktree-workflow
 ├── measure/                        # analyze.py, bootstrap.sh — the slow lane
 ├── tools/wt.sh                     # `git wt` — branch work in linked worktrees
-├── tests/                          # lib.sh + checkout-state.sh + 12 suites
+├── tests/                          # lib.sh + checkout-state.sh + 13 suites
 ├── .githooks/                      # pre-commit (gitleaks), post-checkout (siren)
+├── .claude/hooks/                  # agent guards — refuse a live edit before it lands
 ├── install.sh · verify.sh · Brewfile
 ├── zsh/ · starship/ · ghostty/ · ssh/
 └── .github/workflows/gitleaks.yml
