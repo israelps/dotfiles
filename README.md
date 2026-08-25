@@ -249,9 +249,7 @@ dotfiles/
 ├── README.md · CLAUDE.md          # humans · agents (2 screens, per the docs)
 ├── .claude/
 │   ├── settings.json.example
-│   └── rules/                      # shell, tests — paths:-scoped, load only
-│                                   #   where they apply; policy-layer, signals
-│                                   #   — always loaded
+│   └── rules/                      # scoped and always-on rules, below
 ├── claude/.claude/rules/           # portable user-level rules (context7)
 ├── docs/                           # claude-code-tuning, worktree-workflow
 ├── measure/analyze.py
@@ -262,6 +260,10 @@ dotfiles/
 ├── zsh/ · starship/ · ghostty/ · ssh/
 └── .github/workflows/gitleaks.yml
 ```
+
+`.claude/rules/` holds four: `shell` and `tests` carry a `paths:` glob and load
+only where they apply; `policy-layer` and `signals` have none and are always
+loaded, because they govern how rules and measurements are written at all.
 
 The top-level directories that are *not* stow packages are `docs/`, `measure/`,
 `tools/` and `tests/`. Everything else at that level is a package: `install.sh`

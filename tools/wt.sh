@@ -21,7 +21,6 @@ set -uo pipefail
 
 info() { printf '  %s\n' "$*"; }
 erro() { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; }
-note() { printf '\033[2m  %s\033[0m\n' "$*"; }
 
 usage() {
   cat <<'EOF'

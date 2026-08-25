@@ -68,10 +68,18 @@ pre-guard `install.sh` run from a worktree reported a bogus conflict on
 re-link everything at the branch.
 
 **`.githooks/post-checkout` is a siren.** It fires when *this* checkout leaves
-`main`, and stays silent in five cases that would otherwise cry wolf: a path
-checkout, a null old-ref (`git clone`, `git worktree add`), a linked worktree,
-a rebase or bisect in progress, and landing back on `main`. It also stays
-silent in anyone else's clone, where there is no live config to break.
+`main`, and six rules keep it from crying wolf — the hook numbers them in the
+same order:
+
+1. a path checkout (`git restore`, `git checkout -- file`);
+2. a null old-ref, which means the checkout *created* this tree (`git clone`,
+   `git worktree add`);
+3. a linked worktree, where changing branches is the whole point;
+4. a rebase or bisect in progress;
+5. landing back on `main`, which is the cure;
+6. any clone that is not the stowed one — this is a public repo, and an alarm
+   about a live config the reader does not have is noise that makes the real
+   one less credible.
 
 There is **no `pre-checkout` hook in git**, so it can only warn after the fact,
 and its exit status becomes `git switch`'s — hence the explicit `exit 0`.
@@ -94,9 +102,14 @@ classifies the checkout as `stowed`, `worktree` or `absent`:
 `absent` never skips, and `worktree` requires positive proof that the live file
 belongs to *this repository's* main worktree. Without that proof a linked
 worktree of an unrelated clone would earn a permanent free pass — a green suite
-on a machine nothing was installed on. `tests/worktree.test.sh` drives all five
-rows of that table against a hermetic fixture, including two the real machine
-can never produce.
+on a machine nothing was installed on.
+
+Three states, but five cases, and `tests/worktree.test.sh` drives every one
+against a hermetic fixture with a fake `$HOME`: a stowed checkout, a worktree
+of it, an unrelated clone, **a worktree of an unrelated clone**, and a machine
+stow never touched. The last four must all come back `absent` or `worktree`
+exactly as listed — and two of them are cases this machine can never produce,
+which is why the fixture exists at all.
 
 Identity is `device:inode`, never a resolved path: macOS ships neither
 `realpath(1)` nor `readlink -f`.
