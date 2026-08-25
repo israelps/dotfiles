@@ -37,6 +37,16 @@
 #   run, on this machine, at this moment. A stored figure from another day is
 #   the unchecked number that .claude/rules/signals.md exists to forbid.
 #
+#   EACH ARM GETS A PRIVATE, DISPOSABLE ZDOTDIR, AND ONE DISCARDED WARM-UP RUN.
+#   Pointing ZDOTDIR straight at a checkout's zsh/ writes .zcompdump INTO that
+#   checkout — tests/lib.sh documents the same trap and builds a temp dir for
+#   the same reason. Worse than the litter is what it does to the numbers: the
+#   first run of an arm builds the dump and later runs read it, so in A-B-A-B-A
+#   the baseline is warm three times and the candidate twice. Measured on
+#   2026-08-25, that confound produced first_prompt_lag_ms SLOWER by 20.9 ms
+#   and first_command_lag_ms FASTER by 49.4 ms in the SAME run, for a change
+#   that only ever adds work. A warm-up run per arm, thrown away, removes it.
+#
 #   A DELTA INSIDE THE FLOOR IS NOT A NUMBER. It prints as "not resolvable",
 #   never as a figure with a sign. Measured on 2026-08-25 at -i 3, the floor
 #   was 8.2 ms against a 248 ms baseline, and an injected `sleep 0.4` showed up
@@ -93,11 +103,21 @@ if [ "$CAND" = "$MAIN" ]; then
   exit 1
 fi
 
-# ZDOTDIR wants a directory holding .zshrc, which is exactly the shape of this
-# repo's zsh package. STARSHIP_CONFIG comes from the same checkout, or the arm
-# would be that branch's shell wearing the live prompt.
-bench_arm() {  # bench_arm <checkout> -> zsh-bench's key=value block
-  ZDOTDIR="$1/zsh" \
+# One temp ZDOTDIR per arm, holding a symlink to that checkout's .zshrc. Created
+# once and reused across that arm's runs so every measured run is equally warm;
+# removed on exit so no checkout is littered.
+TMPROOT="$(mktemp -d)"
+cleanup() { rm -rf "$TMPROOT"; return 0; }
+trap 'cleanup' EXIT
+
+arm_zdotdir() {  # arm_zdotdir <checkout> <label> -> path to that arm's ZDOTDIR
+  local d="$TMPROOT/$2"
+  [ -d "$d" ] || { mkdir -p "$d"; ln -sf "$1/zsh/.zshrc" "$d/.zshrc"; }
+  printf '%s\n' "$d"
+}
+
+bench_arm() {  # bench_arm <checkout> <label> -> zsh-bench's key=value block
+  ZDOTDIR="$(arm_zdotdir "$1" "$2")" \
   STARSHIP_CONFIG="$1/starship/.config/starship.toml" \
     "$BENCH" -i "$ITERS" 2>/dev/null
 }
@@ -110,11 +130,16 @@ info "candidate  $CAND"
 info "zsh-bench -i $ITERS, order A-B-A-B-A (both arms replicated)"
 echo
 
-info "baseline 1/3 …";  A1="$(bench_arm "$MAIN")"
-info "candidate 1/2 …"; B1="$(bench_arm "$CAND")"
-info "baseline 2/3 …";  A2="$(bench_arm "$MAIN")"
-info "candidate 2/2 …"; B2="$(bench_arm "$CAND")"
-info "baseline 3/3 …";  A3="$(bench_arm "$MAIN")"
+# Discarded. Its only job is to build each arm's compdump, so that no measured
+# run below is the one paying for it.
+info "warming both arms (discarded) …"
+bench_arm "$MAIN" live >/dev/null; bench_arm "$CAND" cand >/dev/null
+
+info "baseline 1/3 …";  A1="$(bench_arm "$MAIN" live)"
+info "candidate 1/2 …"; B1="$(bench_arm "$CAND" cand)"
+info "baseline 2/3 …";  A2="$(bench_arm "$MAIN" live)"
+info "candidate 2/2 …"; B2="$(bench_arm "$CAND" cand)"
+info "baseline 3/3 …";  A3="$(bench_arm "$MAIN" live)"
 echo
 
 for blk in "$A1" "$B1" "$A2" "$B2" "$A3"; do
