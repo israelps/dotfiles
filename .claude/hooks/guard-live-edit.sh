@@ -16,31 +16,17 @@
 path="$(hook_field '.tool_input.file_path')"
 [ -n "$path" ] || allow
 
-case "$path" in
-  /*) abs="$path" ;;
-  *)  abs="$DOTFILES_DIR/$path" ;;
-esac
-case "$abs" in
-  "$DOTFILES_DIR"/*) rel="${abs#"$DOTFILES_DIR"/}" ;;
-  *) allow ;;                       # not this repo at all
-esac
+# package_of() lives in lib.sh because guard-live-write.sh needs the identical
+# answer for a target it dug out of a shell command. One definition, so the two
+# guards cannot come to disagree about what counts as live.
+pkg="$(package_of "$path")"
+[ -n "$pkg" ] || allow
 
-pkg="${rel%%/*}"
-[ "$pkg" != "$rel" ] || allow       # a file at the repo root is not a package
-
-hit=0
-while IFS= read -r p; do
-  [ "$p" = "$pkg" ] && hit=1
-done <<EOF
-$(stow_packages)
-EOF
-[ "$hit" -eq 1 ] || allow
-
-deny "$rel is inside the '$pkg' stow package, and this checkout is the one \$HOME points at — the file goes live the moment it is written, before any git command runs.
+deny "$path is inside the '$pkg' stow package, and this checkout is the one \$HOME points at — the file goes live the moment it is written, before any git command runs.
 
 Do it in a worktree instead:
     git wt new <branch>
-then edit ../dotfiles-wt/<branch>/$rel, and when it is ready:
+then edit it under ../dotfiles-wt/<branch>/, and when it is ready:
     git wt promote <branch>
 
 If it could affect shell latency, measure it there first:

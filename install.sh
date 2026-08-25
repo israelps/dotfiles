@@ -122,15 +122,40 @@ path = os.path.join(root, ".claude", "settings.local.json")
 h = os.path.join(root, ".claude", "hooks")
 
 want = {
+    # Three questions before the call, one net after, one reporter at each end.
     "PreToolUse": [
         {"matcher": "Edit|Write|NotebookEdit",
          "hooks": [{"type": "command", "command": f"{h}/guard-live-edit.sh"}]},
         {"matcher": "Bash",
-         "hooks": [{"type": "command", "command": f"{h}/guard-git.sh"}]},
+         "hooks": [{"type": "command", "command": f"{h}/guard-git.sh"},
+                   {"type": "command", "command": f"{h}/guard-live-write.sh"}]},
+    ],
+    "PostToolUse": [
+        {"matcher": "Bash|Edit|Write|NotebookEdit",
+         "hooks": [{"type": "command", "command": f"{h}/guard-live-drift.sh"}]},
     ],
     "SessionStart": [{"hooks": [{"type": "command", "command": f"{h}/session-start.sh"}]}],
     "Stop": [{"hooks": [{"type": "command", "command": f"{h}/guard-stop.sh"}]}],
 }
+
+
+def ours(hooks):
+    """True when every command in `hooks` is one of our own scripts.
+
+    Without this, adding a guard meant hand-editing the live settings file:
+    the old code refused to touch ANY existing hooks, which correctly protects
+    someone else's wiring but also froze ours at whatever the first install
+    wrote. Distinguishing the two is the whole fix — ours all live under
+    .claude/hooks/ in this checkout, so anything else present means hands off.
+    """
+    if not isinstance(hooks, dict):
+        return False
+    for entries in hooks.values():
+        for entry in entries:
+            for hook in entry.get("hooks", []):
+                if not str(hook.get("command", "")).startswith(h + "/"):
+                    return False
+    return True
 
 try:
     with open(path) as fh:
@@ -146,17 +171,18 @@ except Exception as e:
 cur = data.get("hooks")
 if cur == want:
     print("  agent guards already wired")
-elif cur:
+elif cur and not ours(cur):
     # Never clobber hooks someone else put there. Say what is missing and how.
-    print("  .claude/settings.local.json already defines hooks — leaving them alone")
+    print("  .claude/settings.local.json defines hooks that are not ours — leaving them alone")
     print("  to adopt these, merge .claude/hooks/* into that file by hand")
     sys.exit(0)
 else:
+    verb = "updated" if cur else "wired"
     data["hooks"] = want
     with open(path, "w") as fh:
         json.dump(data, fh, indent=2)
         fh.write("\n")
-    print("  wired agent guards" + ("" if existed else " (created settings.local.json)"))
+    print(f"  {verb} agent guards" + ("" if existed else " (created settings.local.json)"))
 PY
 fi
 

@@ -53,11 +53,27 @@ stow -D zsh starship ghostty ssh   # undo
    | a stow package | `git wt new <branch>` → edit → `./measure/compare.sh` if it could affect latency → `./verify.sh` → commit there → `git wt promote` |
    | anything else | `main`, directly |
 
-   `.claude/hooks/` enforces this for the agent: an `Edit` inside a package on
-   the stowed checkout is refused, as is `git switch`/`stash`/`reset --hard`.
-   `git switch main` is always allowed — it is the cure. The bound is real:
-   these constrain the agent, never the owner typing in their own terminal.
-   Driven by `tests/claude-hooks.test.sh`; wired by `./install.sh`.
+   `.claude/hooks/` enforces this for the agent. Each script answers one
+   question — three before the call, one net after:
+
+   | script | asks |
+   |---|---|
+   | `guard-live-edit.sh` | is this **path** live? (`Edit`/`Write`) |
+   | `guard-live-write.sh` | does this **command** write somewhere live? (`Bash`) |
+   | `guard-git.sh` | does this command **replace the tree**? (`Bash`) |
+   | `guard-live-drift.sh` | did the live surface **move anyway**? (`PostToolUse`) |
+
+   The first three refuse before anything happens but read intent, so they are
+   blind to an edit hosted by an interpreter (`python3 -c`, `perl -i`) or a path
+   built at runtime. The fourth asks git instead, which cannot be fooled — at
+   the cost of being one tool call late. `session-start.sh` snapshots the
+   surface at turn zero so the net reports only what THIS session moved; your
+   own uncommitted work is its floor, never its accusation. `git switch main`
+   is always allowed — it is the cure. The bound is real: these constrain the
+   agent, never the owner typing in their own terminal.
+   Driven by `tests/claude-hooks.test.sh` (hermetic fixture — producing real
+   drift here would mean committing the very act under test); wired by
+   `./install.sh`, which updates its own wiring and leaves anyone else's alone.
 
 ## Handing a command to the owner
 

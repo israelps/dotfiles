@@ -60,9 +60,92 @@ deny() {
   exit 0
 }
 
+# block <reason> — for a PostToolUse hook, where the call has already run. The
+# shape is different from deny()'s on purpose: PreToolUse decides a permission,
+# PostToolUse can only interrupt what follows and hand back a reason. Both are
+# the documented forms for their event; neither works in the other's place.
+block() {
+  command -v jq >/dev/null 2>&1 || fail_open "jq is missing, cannot emit a decision"
+  jq -n --arg r "$1" '{decision: "block", reason: $r}'
+  exit 0
+}
+
 # stow_packages -> the package names, read from install.sh, which is the single
 # place they are declared. A second copy here would be a second thing to keep
 # honest; policy-layer.md asks for the disagreement to be impossible.
 stow_packages() {
   sed -n 's/^PACKAGES=(\(.*\))$/\1/p' "$DOTFILES_DIR/install.sh" | tr ' ' '\n' | sed '/^$/d'
+}
+
+# package_of <path> -> the stow package the path falls inside, or empty.
+#
+# Shared, not copied. guard-live-edit.sh gets a .tool_input.file_path and
+# guard-live-write.sh digs targets out of a .tool_input.command; if each decided
+# "is this live?" on its own the two would drift, and one of them would be
+# wrong with nothing to say so. policy-layer.md asks for that disagreement to be
+# impossible, so there is one answer and both call it.
+#
+# Resolves a leading ~/ and follows a symlink, because ~/.zshrc IS the live
+# file: it points into this checkout, so writing through it is the same
+# overwrite as writing zsh/.zshrc directly.
+package_of() {
+  local path="$1" abs rel pkg p link
+  [ -n "$path" ] || return 0
+
+  case "$path" in
+    "~/"*) abs="$HOME/${path#\~/}" ;;
+    /*)    abs="$path" ;;
+    *)     abs="$DOTFILES_DIR/$path" ;;
+  esac
+
+  if [ -L "$abs" ]; then
+    link="$(readlink "$abs")"
+    case "$link" in
+      /*) abs="$link" ;;
+      *)  abs="$(cd "$(dirname "$abs")" 2>/dev/null && cd "$(dirname "$link")" 2>/dev/null && pwd)/$(basename "$link")" ;;
+    esac
+  fi
+
+  case "$abs" in
+    "$DOTFILES_DIR"/*) rel="${abs#"$DOTFILES_DIR"/}" ;;
+    *) return 0 ;;                    # not this repo at all
+  esac
+
+  pkg="${rel%%/*}"
+  [ "$pkg" != "$rel" ] || return 0    # a file at the repo root is not a package
+
+  while IFS= read -r p; do
+    [ "$p" = "$pkg" ] && { printf '%s\n' "$pkg"; return 0; }
+  done <<EOF
+$(stow_packages)
+EOF
+  return 0
+}
+
+# dirty_packages -> one porcelain line per changed file inside a stow package,
+# sorted. This is the whole live surface in one string: comparable, cheap, and
+# blind to HOW the change arrived, which is the point. The PreToolUse guards
+# read commands and can be fooled by an interpreter; git cannot.
+dirty_packages() {
+  local pkgs
+  pkgs="$(stow_packages | tr '\n' ' ')"
+  # shellcheck disable=SC2086
+  git -C "$DOTFILES_DIR" status --porcelain=v1 -- $pkgs 2>/dev/null | LC_ALL=C sort
+}
+
+# drift_baseline <session-id> -> path to this session's snapshot of the live
+# surface, or EMPTY when there is no session id. Per session, in TMPDIR: the
+# question is always "did THIS session move it", never "is it dirty", because
+# the owner's own uncommitted work must never read as the agent's doing.
+#
+# It returns empty rather than falling back to a shared name, and that is not
+# fussiness. guard-stop.sh can safely default its marker to "unknown" — sharing
+# a "already warned once" flag costs nothing. Sharing a BASELINE is the
+# cross-session contamination this whole mechanism exists to prevent: session A
+# would inherit B's floor and either accuse B's work or excuse its own. Found
+# on 2026-08-25 by an unexplained dotfiles-drift-unknown appearing in TMPDIR
+# from a real hook call whose payload carried no session_id.
+drift_baseline() {
+  [ -n "${1:-}" ] || return 0
+  printf '%s/dotfiles-drift-%s\n' "${TMPDIR:-/tmp}" "$1"
 }
