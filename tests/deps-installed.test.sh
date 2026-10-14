@@ -40,6 +40,8 @@ while read -r kind name; do
     ghostty)                 probe="app:/Applications/Ghostty.app" ;;
     zsh-autosuggestions)     probe="file:$PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ;;
     zsh-syntax-highlighting) probe="file:$PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ;;
+    # A cask font installs into the user's Fonts folder, not the brew prefix.
+    font-jetbrains-mono-nerd-font) probe="file:$HOME/Library/Fonts/JetBrainsMonoNerdFont-Regular.ttf" ;;
     ripgrep)                 probe="bin:rg" ;;
     coreutils)               probe="bin:timeout" ;;
     starship|stow|eza|bat|fd|fzf|zoxide|xh|shellcheck|gitleaks|tmux)
@@ -93,8 +95,11 @@ else
   case "$bundle_rc" in
     0)   ok "brew bundle check passes" ;;
     124) bad "brew bundle check passes" "timed out after 120s — brew could not reach its API" ;;
+    # `|| true`: brew exits non-zero here BY DEFINITION, and under pipefail
+    # that made the assignment fail and trip lib.sh's ERR trap — every genuine
+    # unmet dependency was reported a second time as "an unexpected shell error".
     *)   unmet="$(HOMEBREW_NO_AUTO_UPDATE=1 timeout 120 brew bundle check --verbose --file=Brewfile 2>&1 \
-                  | sed -n 's/^.*Formula \([^ ]*\) needs.*/\1/p' | tr '\n' ' ')"
+                  | sed -n -E 's/^.*(Formula|Cask) ([^ ]+) needs.*/\2/p' | tr '\n' ' ' || true)"
          bad "brew bundle check passes" "unmet: ${unmet:-rc=$bundle_rc} — run: brew bundle install" ;;
   esac
 fi

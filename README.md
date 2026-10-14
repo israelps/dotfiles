@@ -127,9 +127,10 @@ Documentation rots. These do not:
 | `prompt-no-hang` | the prompt spawns no unbounded subprocess and emits no warning |
 | `ssh-multiplex` | connections are reused, the socket path survives the ~104-byte limit, and no host leaks into a fragment |
 | `repo-hygiene` | the repo publishes what it means to and nothing it does not, and no tracked file carries a personal absolute path |
-| `deps-installed` | `brew bundle check` passes, every formula the Brewfile declares is installed, and every unguarded `source` in `.zshrc` resolves |
+| `deps-installed` | `brew bundle check` passes, every formula and cask the Brewfile declares is installed, and every unguarded `source` in `.zshrc` resolves |
 | `rules-hygiene` | every rule in `.claude/rules/` declares what it covers and what backs it, in a closed vocabulary, within the context ceiling |
-| `path-entries` | every directory `.zshrc` prepends to `$PATH` exists — no residue from an uninstalled tool |
+| `path-entries` | every directory `.zshrc` prepends to `$PATH` exists or is guarded by a test of that same directory — no residue from an uninstalled tool |
+| `install-fresh` | on a machine that is not the owner's, `install.sh` succeeds or stops before any plan with a remedy that works when pasted; `claude/` is linked only on request |
 
 The suite earned its keep on its first run: it caught oh-my-zsh's own unguarded
 `ls` and `grep` leaking into non-interactive shells — a leak neither the author
@@ -186,12 +187,28 @@ pair of baseline samples landed 1.5 ms apart and the tool reported
 git clone https://github.com/israelps/dotfiles ~/projects/dev/dotfiles
 cd ~/projects/dev/dotfiles
 brew bundle
+git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh   # if you don't have it
 ./install.sh          # --dry-run to preview
 ./measure/bootstrap.sh # the instruments behind the numbers below
 ./verify.sh           # prove the properties hold on your machine
 ```
 
-Open a new terminal. Undo with `stow -D zsh starship ghostty ssh`.
+**oh-my-zsh** is the one dependency Homebrew cannot provide. Clone it, as
+above — its `curl | sh` installer writes its own `~/.zshrc`, which this
+install then refuses as a conflict. `install.sh` stops and says so if it is
+missing.
+
+**Your existing `~/.zshrc`** will be reported as a conflict on the first run;
+nothing is overwritten. The script prints a ready-to-paste `mv` that keeps it
+as `~/.zshrc.pre-dotfiles`.
+
+**`claude/` is opt-in.** It links rules into `~/.claude/rules/`, which changes
+how Claude Code behaves in *every* project, and its one rule assumes the
+[Context7](https://github.com/upstash/context7) MCP server. Add it with
+`./install.sh --with-claude`.
+
+Open a new terminal. Undo with `stow -D zsh starship ghostty ssh` (add
+`claude` if you installed it).
 
 ---
 
@@ -291,7 +308,7 @@ dotfiles/
 ├── docs/                           # claude-code-tuning, worktree-workflow
 ├── measure/                        # analyze.py, bootstrap.sh — the slow lane
 ├── tools/wt.sh                     # `git wt` — branch work in linked worktrees
-├── tests/                          # lib.sh + checkout-state.sh + 13 suites
+├── tests/                          # lib.sh + checkout-state.sh + 14 suites
 ├── .githooks/                      # pre-commit (gitleaks), post-checkout (siren)
 ├── .claude/hooks/                  # agent guards — refuse a live edit before it lands
 ├── install.sh · verify.sh · Brewfile

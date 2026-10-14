@@ -7,9 +7,9 @@ waste turns. Every claim here was measured — see `README.md` for the numbers.
 
 ```bash
 brew bundle          # dependencies
-./install.sh         # symlinks via stow (--dry-run to preview)
+./install.sh         # symlinks via stow (--dry-run to preview; --with-claude adds claude/)
 ./verify.sh          # run every property test — do this before proposing a change
-stow -D zsh starship ghostty ssh   # undo
+stow -D zsh starship ghostty ssh   # undo (add claude if it was installed)
 ```
 
 ## Invariants — do not break these

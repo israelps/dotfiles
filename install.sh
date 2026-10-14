@@ -4,15 +4,25 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Every stow package in this repo. .claude/hooks/lib.sh reads THIS line as the
+# definition of the live surface, so it lists all of them — including the
+# optional ones below, which are live wherever they happen to be installed.
 PACKAGES=(zsh starship ghostty ssh claude)
+# Installed only on request. `claude` puts rules into ~/.claude/rules/, which
+# changes how YOUR Claude Code behaves in every project — and its one rule
+# assumes the Context7 MCP server, which a new machine may not have.
+OPTIONAL_PACKAGES=(claude)
 DRY_RUN=0
+WITH_CLAUDE=0
 
 for arg in "$@"; do
   case "$arg" in
     -n|--dry-run) DRY_RUN=1 ;;
+    --with-claude) WITH_CLAUDE=1 ;;
     -h|--help)
-      echo "usage: $0 [--dry-run]"
-      echo "  --dry-run   show what would happen, without touching the filesystem"
+      echo "usage: $0 [--dry-run] [--with-claude]"
+      echo "  --dry-run       show what would happen, without touching the filesystem"
+      echo "  --with-claude   also link claude/ (Claude Code rules) into ~/.claude"
       exit 0 ;;
     *) echo "unknown argument: $arg" >&2; exit 2 ;;
   esac
@@ -48,7 +58,7 @@ if git -C "$DOTFILES_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
-# ── 1. Dependências ─────────────────────────────────────────────────────────
+# ── 1. Dependencies ─────────────────────────────────────────────────────────
 echo "▸ Checking dependencies"
 missing_bins=()
 for bin in stow zsh starship; do
@@ -60,6 +70,30 @@ if [ ${#missing_bins[@]} -gt 0 ]; then
   exit 1
 fi
 info "ok — stow, zsh and starship are present"
+
+# oh-my-zsh is not a Homebrew formula, so `brew bundle` cannot provide it — and
+# zsh/.zshrc sources it unguarded. Without it every new shell opens with an
+# error. Refused here, before any plan, so the failure names its cause.
+#
+# The plain clone is step 1 of oh-my-zsh's own manual install. Its scripted
+# installer is the wrong tool for this repo: it writes a real ~/.zshrc, which
+# step 4 below then refuses as a conflict.
+if [ ! -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
+  erro "missing: oh-my-zsh (~/.oh-my-zsh) — zsh/.zshrc sources it"
+  info "install it with:  git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh"
+  info "(not the curl installer: it writes its own ~/.zshrc, which would then conflict)"
+  exit 1
+fi
+info "ok — oh-my-zsh is present"
+
+# Which packages this run links. bash 3.2 has no set difference; a loop it is.
+INSTALL=()
+for pkg in "${PACKAGES[@]}"; do
+  optional=0
+  for opt in "${OPTIONAL_PACKAGES[@]}"; do [ "$pkg" = "$opt" ] && optional=1; done
+  if [ "$optional" -eq 1 ] && [ "$WITH_CLAUDE" -eq 0 ]; then continue; fi
+  INSTALL+=("$pkg")
+done
 
 # ── 2. Repository settings ──────────────────────────────────────────────────
 # Two settings this repo needs that git cannot ship: hooks are never committed,
@@ -186,11 +220,12 @@ else:
 PY
 fi
 
-# ── 4. Conflitos ────────────────────────────────────────────────────────────
+# ── 4. Conflicts ────────────────────────────────────────────────────────────
 # A REAL file (not a symlink) at the destination would either be swallowed by
 # stow --adopt or make stow abort. Better to detect it and say so up front.
 echo "▸ Looking for conflicts"
 conflicts=0
+remedies=()
 while IFS= read -r src; do
   dest="$HOME/${src#*/}"
   [ -e "$dest" ] || continue
@@ -204,12 +239,18 @@ while IFS= read -r src; do
   if [ ! -L "$dest" ]; then
     erro "exists and is NOT a symlink: $dest"
     conflicts=$((conflicts + 1))
+    remedies+=("mv ~/${src#*/} ~/${src#*/}.pre-dotfiles")
   fi
-done < <(cd "$DOTFILES_DIR" && find "${PACKAGES[@]}" -type f -not -name '.DS_Store')
+done < <(cd "$DOTFILES_DIR" && find "${INSTALL[@]}" -type f -not -name '.DS_Store')
 
 if [ "$conflicts" -gt 0 ]; then
   erro "$conflicts conflict(s). Move or delete the files above, then run again."
-  info "to import them into the repo instead of deleting:  stow --adopt ${PACKAGES[*]}"
+  # The first install on any real machine lands here — everyone already has a
+  # ~/.zshrc. So the safe remedy is printed ready to paste, one line per file,
+  # and keeps a backup; tests/install-fresh.test.sh runs these exact lines.
+  info "to keep them as backups, run:"
+  for r in "${remedies[@]}"; do info "    $r"; done
+  info "to import them into the repo instead:  stow --adopt ${INSTALL[*]}"
   info "(--adopt OVERWRITES the repo content with your \$HOME copy — check git diff afterwards)"
   exit 1
 fi
@@ -232,9 +273,10 @@ fi
 
 # ── 6. Symlinks ─────────────────────────────────────────────────────────────
 echo "▸ Creating symlinks"
+[ "$WITH_CLAUDE" -eq 0 ] && info "skipping claude (Claude Code rules) — pass --with-claude to link it"
 stow_flags=(-v -d "$DOTFILES_DIR" -t "$HOME")
 [ "$DRY_RUN" -eq 1 ] && stow_flags+=(-n)
-stow "${stow_flags[@]}" "${PACKAGES[@]}"
+stow "${stow_flags[@]}" "${INSTALL[@]}"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "▸ Dry run — nothing was modified."

@@ -5,6 +5,10 @@
 # ── Terminal and prompt ─────────────────────────────────────────────────────
 cask "ghostty"                    # GPU-accelerated, injects zsh shell integration itself
 brew "starship"                   # prompt (already a Rust binary — see README § myths)
+cask "font-jetbrains-mono-nerd-font"  # ghostty's font-family; the prompt and eza icons
+                                  # are Nerd Font glyphs and render as boxes without it.
+                                  # Installed here since 2026-08-21, undeclared until
+                                  # 2026-10-14 — so a fresh machine never got it.
 
 # ── Shell ───────────────────────────────────────────────────────────────────
 brew "zsh-autosuggestions"

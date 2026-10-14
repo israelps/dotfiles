@@ -11,8 +11,12 @@
 # ============================================================================
 
 # ── 1. PATH and fpath — BEFORE oh-my-zsh ────────────────────────────────────
-export PATH="$HOME/.rd/bin:$PATH"          # Rancher Desktop
-export PATH="$HOME/.local/bin:$PATH"
+# Guarded: neither directory exists on every machine. Rancher Desktop creates
+# the first; only some installers (Claude Code's native one, pipx) create the
+# second. Unguarded, a missing one is a dead entry every command lookup stats.
+# tests/path-entries.test.sh checks each guard tests the dir its line prepends.
+[ -d "$HOME/.rd/bin" ] && export PATH="$HOME/.rd/bin:$PATH"       # Rancher Desktop
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
 
 # Docker Desktop completions. Placed here so oh-my-zsh's single compinit sees
 # them; Docker's installer appends a SECOND `compinit` at the end of the file.

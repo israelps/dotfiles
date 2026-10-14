@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# PROPERTY: every directory .zshrc prepends to $PATH exists.
+# PROPERTY: every directory .zshrc prepends to $PATH exists, or is guarded by a
+# test of that same directory.
 #
 # WHY THIS MATTERS
 #   A dead $PATH entry is silent. Nothing errors, nothing warns — the shell just
@@ -11,11 +12,13 @@
 #   after the app was removed. `~/.zshrc` is a symlink into this repo, so a
 #   third-party installer editing it edits TRACKED source.
 #
-#   Only UNGUARDED lines are checked, and the grep enforces that by anchoring on
-#   column 0. A line that prepends from inside an `if [ -x ... ]` is allowed to
-#   name a directory that does not exist, because it tests before it uses. The
-#   conda block was that case until it was removed; the distinction stays, for
-#   the next one.
+#   UNGUARDED lines (column 0, `export PATH="…"`) must name a directory that
+#   exists. A GUARDED one-liner (`[ -d "X" ] && export PATH="X:$PATH"`) is
+#   allowed to name one that does not, because it tests before it uses — that
+#   is what makes the file portable to a machine without Rancher Desktop, whose
+#   `~/.rd/bin` failed this suite on any such machine until 2026-10-14. What a
+#   guarded line must do instead is test the SAME directory it adds: a guard on
+#   X that prepends Y is a dead entry wearing a guard.
 # shellcheck source=tests/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 echo "▸ every PATH entry resolves"
@@ -36,12 +39,28 @@ while IFS= read -r line; do
   esac
 done < <(grep -E '^export PATH="' "$ZSHRC")
 
+# Guarded one-liners: compare the guard's directory with the prepended one, as
+# text. Existence is deliberately NOT checked — absence is what the guard is for.
+while IFS= read -r line; do
+  guard="$(printf '%s\n' "$line" | sed -E 's/^\[ -d "([^"]+)" \].*/\1/')"
+  # shellcheck disable=SC2016  # `$PATH` is the literal text being matched
+  added="$(printf '%s\n' "$line" | sed -E 's/.*export PATH="([^":]+):\$PATH".*/\1/')"
+  checked=$((checked + 1))
+  if [ "$guard" = "$added" ]; then
+    ok "guarded PATH entry tests what it adds: $added"
+  else
+    bad "guarded PATH entry tests what it adds: $added" \
+        "the guard tests $guard — when $added is missing it is still prepended"
+  fi
+done < <(grep -E '^\[ -d "[^"]+" \] && export PATH="' "$ZSHRC")
+
 # Non-vacuity: a grep that stopped matching would leave this suite green having
-# checked nothing at all.
+# checked nothing at all. Both forms count — the threshold did not move when the
+# lines changed form.
 if [ "$checked" -ge 2 ]; then
-  ok "found unguarded PATH lines to check ($checked)"
+  ok "found PATH lines to check ($checked)"
 else
-  bad "found unguarded PATH lines to check" \
+  bad "found PATH lines to check" \
       "only $checked matched — .zshrc changed shape or the grep broke; this check was vacuous"
 fi
 
