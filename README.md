@@ -21,7 +21,10 @@ jobs, duration, clock.
 It does not eliminate agent friction. The measurement says that is not on offer.
 
 Across **254 sessions · 21,637 tool calls · 1,347 failures · 482 rework turns**,
-here is where the rework actually came from:
+here is where the rework actually came from. These figures, and those in the
+next table unless a row says otherwise, were recorded on 2026-08-20 with
+`measure/analyze.py` over the owner's own Claude Code transcripts — yours will
+differ, which is why the tool ships.
 
 | Cause | Rework turns | Fixable? |
 |---|---|---|
@@ -47,7 +50,8 @@ regression-proof** — plus two latency wins found on the way.
 | `--icons=auto` (with the `=`) | `ls somedir/` broken 51× | `eza --icons` swallows the next word |
 | `unalias egrep fgrep` | `rg -E` is `--encoding` | `egrep -i x f` exited 2 |
 | `unalias ls grep` outside interactive | oh-my-zsh leaks `--exclude-dir` | searches stop lying by omission |
-| `compinit` once; oh-my-zsh update check off | zprof: 190 ms + 127 ms | startup **0.18–0.28 s → 0.13 s** |
+| oh-my-zsh update check off | zprof: 127 ms on every shell | the largest single startup item, gone |
+| `compinit` once (full `fpath` before oh-my-zsh) | recorded as 190 ms; re-taken 2026-08-25 with `measure/compare.sh`: a **trade**, +15.9 ms first prompt / −50.6 ms first command | kept for correctness, not speed — see `.claude/rules/shell.md` |
 | Prompt spawns no language subprocess | `go version` took 1553 ms with an absent toolchain | warning gone; ~31 ms per prompt |
 | **SSH connection multiplexing** | 878 invocations, 487 to one host, 2.4 h | **508 ms → 63 ms, 88%** |
 | **Notify on commands over 30 s** | 651 commands > 30 s, 19.5 h waiting | the wait stops being blind |
@@ -55,6 +59,46 @@ regression-proof** — plus two latency wins found on the way.
 `ssh` deserves its own note: it was the single largest source of rework
 (69 extra turns, 13% failure rate). Most of that cost is connection setup — a
 handshake that can fail. A reused socket does not redo the handshake.
+
+---
+
+## Install
+
+Needs macOS and [Homebrew](https://brew.sh); the Brewfile brings Ghostty,
+Starship and the CLI tools. The shell fixes apply to anything that runs
+commands through zsh. Only `measure/analyze.py` (which reads Claude Code
+transcripts) and the opt-in `claude/` package are specific to Claude Code.
+
+```bash
+git clone https://github.com/israelps/dotfiles ~/dotfiles   # any path works
+cd ~/dotfiles
+brew bundle
+git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh   # if you don't have it
+./install.sh          # --dry-run to preview
+./measure/bootstrap.sh # the instruments behind the numbers below
+./verify.sh           # prove the properties hold on your machine
+```
+
+**oh-my-zsh** is the one dependency Homebrew cannot provide. Clone it, as
+above — its `curl | sh` installer writes its own `~/.zshrc`, which this
+install then refuses as a conflict. `install.sh` stops and says so if it is
+missing.
+
+**Your existing `~/.zshrc`** will be reported as a conflict on the first run;
+nothing is overwritten. The script prints a ready-to-paste `mv` that keeps it
+as `~/.zshrc.pre-dotfiles`.
+
+**`claude/` is opt-in.** It links rules into `~/.claude/rules/`, which changes
+how Claude Code behaves in *every* project, and its one rule assumes the
+[Context7](https://github.com/upstash/context7) MCP server. Add it with
+`./install.sh --with-claude`.
+
+**SSH multiplexing** needs one line in your own `~/.ssh/config`, which this
+repo never touches. `install.sh` prints it at the end;
+[why it works this way](#what-is-in-this-repo-and-what-is-deliberately-not).
+
+Open a new terminal. Undo with `stow -D zsh starship ghostty ssh` (add
+`claude` if you installed it).
 
 ---
 
@@ -130,6 +174,10 @@ Documentation rots. These do not:
 | `deps-installed` | `brew bundle check` passes, every formula and cask the Brewfile declares is installed, and every unguarded `source` in `.zshrc` resolves |
 | `rules-hygiene` | every rule in `.claude/rules/` declares what it covers and what backs it, in a closed vocabulary, within the context ceiling |
 | `path-entries` | every directory `.zshrc` prepends to `$PATH` exists or is guarded by a test of that same directory — no residue from an uninstalled tool |
+| `claude-hooks` | the agent cannot put this machine into a bad state by accident, and the guards that ensure it still work |
+| `ghostty-config` | every Ghostty setting the repo makes a claim about is the one Ghostty actually resolved |
+| `instruments` | every number this repo publishes can be taken again, on your machine |
+| `worktree` | exactly one checkout is wired into `$HOME`, the suite knows which, and nothing installs from anywhere else |
 | `install-fresh` | on a machine that is not the owner's, `install.sh` succeeds or stops before any plan with a remedy that works when pasted; `claude/` is linked only on request |
 
 The suite earned its keep on its first run: it caught oh-my-zsh's own unguarded
@@ -178,37 +226,6 @@ Both arms are replicated because the first version was not, and a control
 caught it: run against a candidate byte-identical to the live config, a lucky
 pair of baseline samples landed 1.5 ms apart and the tool reported
 `exit_time_ms SLOWER by 3.7 ms` — a difference between a config and itself.
-
----
-
-## Install
-
-```bash
-git clone https://github.com/israelps/dotfiles ~/projects/dev/dotfiles
-cd ~/projects/dev/dotfiles
-brew bundle
-git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh   # if you don't have it
-./install.sh          # --dry-run to preview
-./measure/bootstrap.sh # the instruments behind the numbers below
-./verify.sh           # prove the properties hold on your machine
-```
-
-**oh-my-zsh** is the one dependency Homebrew cannot provide. Clone it, as
-above — its `curl | sh` installer writes its own `~/.zshrc`, which this
-install then refuses as a conflict. `install.sh` stops and says so if it is
-missing.
-
-**Your existing `~/.zshrc`** will be reported as a conflict on the first run;
-nothing is overwritten. The script prints a ready-to-paste `mv` that keeps it
-as `~/.zshrc.pre-dotfiles`.
-
-**`claude/` is opt-in.** It links rules into `~/.claude/rules/`, which changes
-how Claude Code behaves in *every* project, and its one rule assumes the
-[Context7](https://github.com/upstash/context7) MCP server. Add it with
-`./install.sh --with-claude`.
-
-Open a new terminal. Undo with `stow -D zsh starship ghostty ssh` (add
-`claude` if you installed it).
 
 ---
 
@@ -334,7 +351,9 @@ blocks the known patterns; CI runs [gitleaks](https://github.com/gitleaks/gitlea
 over the full history; `.githooks/pre-commit` catches them earlier. No absolute
 user paths in tracked files.
 
-If you adopt this: **rotate your keys first**, not after.
+If you fork it to add your own config, the same rule holds: a secret that
+reaches a public commit has to be **rotated**, not just deleted — history and
+forks keep it.
 
 ## Credits
 

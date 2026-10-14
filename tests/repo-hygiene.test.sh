@@ -150,4 +150,46 @@ else
   ok "README names every rule in .claude/rules/"
 fi
 
+# Every suite has a row in README's property table. The count above held while
+# the table listed 10 of 14 — a count and a list are different claims, and
+# only one of them was checked. Found 2026-10-14, before the repo went public.
+missing_rows=""
+for t in "$DOTFILES_DIR"/tests/*.test.sh; do
+  [ -e "$t" ] || continue
+  name="$(basename "$t" .test.sh)"
+  grep -q "^| \`$name\` |" README.md 2>/dev/null || missing_rows="$missing_rows $name"
+done
+if [ -n "$missing_rows" ]; then
+  bad "README's property table has a row for every suite" "missing:$missing_rows"
+else
+  ok "README's property table has a row for every suite"
+fi
+
+# A `README § <Heading>` pointer in any tracked file names a heading that
+# exists. Brewfile pointed at three that never did (§ Measurements, § myths,
+# § The problem) — found 2026-10-14. A pointer is matched by PREFIX, because it
+# sits inside prose: "README § Prompt choice simply becomes…" is fine. A
+# placeholder (`§ <section>`, as policy-layer.md writes it) is not a pointer.
+headings="$(sed -n -E 's/^#+ //p' README.md | tr -d '*')"
+refs="$(git grep -h -o -E 'README(\.md)? § [^|]*' 2>/dev/null || true)"
+nrefs=0; dangling=""
+while IFS= read -r m; do
+  [ -n "$m" ] || continue
+  ref="${m#*§ }"
+  case "$ref" in '<'*) continue ;; esac
+  nrefs=$((nrefs + 1))
+  found=0
+  while IFS= read -r h; do
+    case "$ref" in "$h"*) found=1; break ;; esac
+  done <<< "$headings"
+  [ "$found" -eq 1 ] || dangling="$dangling | ${ref%%[).,;]*}"
+done <<< "$refs"
+if [ "$nrefs" -eq 0 ]; then
+  bad "every § pointer into README names a real heading" "found none — the grep broke; the Prompt choice section is cited in several files"
+elif [ -n "$dangling" ]; then
+  bad "every § pointer into README names a real heading" "no such heading:$dangling"
+else
+  ok "every § pointer into README names a real heading ($nrefs checked)"
+fi
+
 summary
